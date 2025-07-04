@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Enum, ForeignKey, Text, Index
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Enum, ForeignKey, Text, Index, JSON
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
 import datetime
@@ -39,7 +39,8 @@ class Strategy(Base):
     name = Column(String, index=True, nullable=False)
     description = Column(Text, nullable=True)
     model_version = Column(String, nullable=True)
-    parameters = Column(Text, nullable=True)  # Store parameters as JSON string or similar
+    parameters = Column(JSON, nullable=True)  # Store parameters as JSON
+    api_key = Column(String, nullable=True) # API key for the strategy
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Optional: if strategies are user-specific
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
@@ -60,11 +61,12 @@ class PriceData(Base):
     low = Column(Float, nullable=False)
     close = Column(Float, nullable=False)
     volume = Column(Float, nullable=False)
+    source = Column(String, nullable=False)
 
     asset = relationship("Asset", back_populates="price_data")
 
     __table_args__ = (
-        Index("idx_asset_timestamp", "asset_id", "timestamp"),
+        Index("idx_asset_timestamp_source", "asset_id", "timestamp", "source", unique=True),
     )
 
 class SignalType(enum.Enum):
@@ -78,9 +80,10 @@ class Signal(Base):
     id = Column(Integer, primary_key=True, index=True)
     asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
     strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    timestamp = Column(DateTime, nullable=False, index=True)
     signal_type = Column(Enum(SignalType), nullable=False, index=True)
     confidence_score = Column(Float, nullable=True) # Value between 0 and 1
+    risk_score = Column(Float, nullable=True) # Risk score associated with the signal
     price_at_signal = Column(Float, nullable=True) # Price when the signal was generated
 
     asset = relationship("Asset", back_populates="signals")
@@ -155,6 +158,7 @@ class BacktestResult(Base):
     winning_trades = Column(Integer, nullable=False)
     losing_trades = Column(Integer, nullable=False)
     win_rate = Column(Float, nullable=False) # winning_trades / total_trades
+    accuracy = Column(Float, nullable=True) # Accuracy of the strategy
     max_drawdown = Column(Float, nullable=False)
     sharpe_ratio = Column(Float, nullable=True)
     sortino_ratio = Column(Float, nullable=True)
