@@ -1,4 +1,5 @@
 SQLAlchemy
 psycopg2-binary
+alembic
 flake8
 pytest
