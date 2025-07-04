@@ -1,0 +1,4 @@
+SQLAlchemy
+psycopg2-binary
+flake8
+pytest
