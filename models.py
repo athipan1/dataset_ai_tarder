@@ -3,7 +3,7 @@ import datetime
 
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float, DateTime,
-    Enum as SQLAlchemyEnum, ForeignKey, Text, Index, JSON
+    Enum as SQLAlchemyEnum, ForeignKey, Text, Index, JSON, Boolean
 )
 from sqlalchemy.orm import relationship, declarative_base
 
@@ -179,7 +179,7 @@ class Order(Base):
     average_fill_price = Column(Float, nullable=True)
     commission = Column(Float, nullable=True)
     exchange_order_id = Column(String, nullable=True, index=True)
-    is_simulated = Column(Integer, default=1, nullable=False)
+    is_simulated = Column(Boolean, default=True, nullable=False)
 
     pnl = Column(Float, nullable=True)
 
@@ -222,7 +222,7 @@ class BacktestResult(Base):
     max_drawdown = Column(Float, nullable=False)
     sharpe_ratio = Column(Float, nullable=True)
     sortino_ratio = Column(Float, nullable=True)
-    parameters_used = Column(Text, nullable=True)
+    parameters_used = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     strategy = relationship("Strategy", back_populates="backtest_results")
@@ -315,12 +315,18 @@ class TargetLabel(Base):
 
 # Example of how to create the tables in a database
 if __name__ == "__main__":
-    # For SQLite, the file will be created in the same directory
-    # Changed db name to avoid conflict
-    engine = create_engine("sqlite:///./ai_trader_v2.db")
-    # For PostgreSQL, connection string would be like:
-    # engine = create_engine(
-    #     "postgresql://user:password@host:port/database"
-    # )
-    Base.metadata.create_all(bind=engine)
-    print("Database tables (v2) created successfully.")
+    import os
+    # Default to SQLite if DATABASE_URL is not set,
+    # facilitating easy local setup.
+    # For production or other environments, set DATABASE_URL env variable.
+    # Example: postgresql://user:password@host:port/database
+    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ai_trader_v2.db")
+    engine = create_engine(DATABASE_URL)
+
+    print(f"Attempting to create database tables using URL: {DATABASE_URL}")
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Database tables created/verified successfully.")
+    except Exception as e:
+        print(f"Error creating database tables: {e}")
+        # Consider more specific error handling or logging here

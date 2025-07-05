@@ -1,5 +1,8 @@
 -- SQL Schema for AI Trader Project
 -- Dialect: Generic SQL (primarily for SQLite/PostgreSQL compatibility via SQLAlchemy)
+-- IMPORTANT: This file is for reference or manual DB setup.
+-- The authoritative schema definition is in `models.py` using SQLAlchemy.
+-- This file may become out of sync with models.py if not manually updated.
 
 -- Users Table (Existing)
 CREATE TABLE IF NOT EXISTS users (
