@@ -30,6 +30,9 @@ if PROJECT_ROOT not in sys.path:
 import ai_trader.models.user  # noqa: E402, F401
 import ai_trader.models.strategy  # noqa: E402, F401
 import ai_trader.models.trade  # noqa: E402, F401
+import ai_trader.models.user_behavior  # noqa: E402, F401
+import ai_trader.models.trade_analytics  # noqa: E402, F401
+import ai_trader.models.market_event  # noqa: E402, F401
 # Add other models here if they define tables that Alembic should be aware of for autogenerate
 # e.g., if you create models for assets, orders, signals, etc.
 # import ai_trader.models.asset # noqa
