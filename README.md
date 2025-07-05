@@ -51,18 +51,38 @@ To create the database tables (if they don't exist yet), you should now use the 
 
 This project uses [Alembic](https://alembic.sqlalchemy.org/) to manage database schema migrations. This allows for evolving the database schema over time without losing data.
 
-### Initial Database Setup
+### Initial Database Setup with Alembic
 
-1.  Ensure your `alembic.ini` file has the correct `sqlalchemy.url` for your database. By default, it's configured for `sqlite:///./ai_trader.db`.
-2.  Run the `create_db.py` script if you need to perform any pre-migration database setup (e.g., for PostgreSQL, ensuring the database itself exists). For SQLite, this step is often not strictly necessary as the file will be created.
-    ```bash
-    python scripts/create_db.py
-    ```
-3.  Apply all migrations to bring the database to the latest schema:
+1.  **Configure Database URL**: Ensure your `alembic.ini` file (and your `.env` file, which `alembic/env.py` might read) has the correct `sqlalchemy.url` for your database. By default, it's configured for `sqlite:///./ai_trader.db`.
+2.  **Create Database (if needed)**:
+    *   For **SQLite**, Alembic will create the database file automatically if it doesn't exist when you run the upgrade command.
+    *   For **PostgreSQL** or other server-based databases, ensure the database itself (e.g., `ai_trader_db`) and the necessary user/permissions are created on the server. The `scripts/create_db.py` *used to* call `init_db()` which could create tables directly; it no longer does this by default to prevent conflicts with Alembic. Its main purpose now would be for any potential pre-Alembic setup if required by your DB server, or for non-Alembic development.
+3.  **Apply Migrations**: To create all tables and bring the database schema to the latest version, run:
     ```bash
     python scripts/upgrade_db.py
     ```
-    This will create the `ai_trader.db` file if it doesn't exist (for SQLite) and apply all migration scripts found in `alembic/versions/`.
+    This command executes `alembic upgrade head`, which applies all migrations found in `alembic/versions/`. For SQLite, this will create the `ai_trader.db` file if it doesn't exist.
+
+### Important Considerations for Alembic Usage
+
+*   **Avoid Mixing Schema Creation Methods**:
+    **CRITICAL**: Do **NOT** use SQLAlchemy's `Base.metadata.create_all()` (which was previously called by `init_db()` in `scripts/create_db.py`) and Alembic (`python scripts/upgrade_db.py` or `alembic upgrade head`) together on the *same live database instance*.
+    *   `Base.metadata.create_all()` directly creates tables based on your current models, bypassing Alembic's versioning.
+    *   Alembic creates tables based on its migration scripts and tracks schema versions in the `alembic_version` table.
+    *   Using both can lead to errors like "table already exists" when running migrations, or an inconsistent database state.
+    *   **Rule of thumb**: Once you start using Alembic for a database, Alembic should be the *only* tool used to modify that database's schema.
+
+*   **Resetting the Database (Especially for SQLite Development)**:
+    If you encounter issues like "table already exists" during an `alembic upgrade` and you're using SQLite for local development (and don't need to preserve data), the simplest solution is often to reset:
+    1.  **Delete the SQLite database file**:
+        ```bash
+        rm ai_trader.db  # Or the name specified in your DATABASE_URL
+        ```
+    2.  **Re-apply all migrations**:
+        ```bash
+        python scripts/upgrade_db.py
+        ```
+    For other database systems, resetting might involve dropping and recreating the database or its tables, then running migrations. Always ensure you understand the implications before deleting data.
 
 ### Generating New Migrations
 

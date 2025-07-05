@@ -67,12 +67,32 @@ def main():
 
     # The engine is imported from session.py, where it's already configured with DATABASE_URL.
     # init_db will use this engine.
-    try:
-        init_db(engine)
-        print("Database tables process completed.")
-        print(f"Database configured at: {engine.url}")
-        check_sqlite_file(engine)
 
+    # IMPORTANT: If using Alembic for database migrations, the `init_db(engine)`
+    # call below should typically be commented out or removed after the initial
+    # setup, or used only for development databases not managed by Alembic.
+    # Alembic will handle table creation and schema management.
+    # Running both `init_db` (which calls Base.metadata.create_all) and
+    # `alembic upgrade` can lead to conflicts or errors if tables already exist.
+
+    # To initialize a database using SQLAlchemy's create_all (e.g., for a quick dev setup
+    # WITHOUT Alembic, or if you are generating the very first Alembic migration from these tables):
+    # try:
+    #     print("Attempting to initialize database using direct SQLAlchemy Base.metadata.create_all()...")
+    #     init_db(engine)
+    #     print("Database tables process completed via create_all.")
+    #     print(f"Database configured at: {engine.url}")
+    #     check_sqlite_file(engine)
+    # except EnvironmentError as ee:
+
+    # For Alembic-managed databases, rely on `alembic upgrade head` (e.g., via `scripts/upgrade_db.py`).
+    print("Script `create_db.py` executed. If you intend to use Alembic,")
+    print("ensure you run `python scripts/upgrade_db.py` or `alembic upgrade head` ")
+    print("to manage your database schema. This script's `init_db()` call is primarily for non-Alembic setups,")
+    print("or for an initial table setup before Alembic takes over.")
+    # Dummy try-except to maintain structure if uncommenting above lines.
+    try:
+        pass
     except EnvironmentError as ee:
         print(f"Configuration error: {ee}")
         print("Please ensure your .env file is correctly set up with DATABASE_URL.")
