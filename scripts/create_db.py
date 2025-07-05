@@ -1,9 +1,10 @@
 import os
-import sqlalchemy # Used to get the DB URL
 from alembic.config import Config
+
 
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 alembic_ini_path = os.path.join(project_root, "alembic.ini")
+
 
 def main():
     print("Database creation/preparation script.")
@@ -47,6 +48,7 @@ def main():
         print(f"Unsupported database type for automatic creation: {db_url}")
 
     print("If you haven't run migrations yet, run: python scripts/upgrade_db.py")
+
 
 if __name__ == "__main__":
     main()

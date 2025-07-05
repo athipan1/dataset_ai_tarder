@@ -10,6 +10,7 @@ alembic_ini_path = os.path.join(project_root, "alembic.ini")
 alembic_cfg = Config(alembic_ini_path)
 alembic_cfg.set_main_option("script_location", os.path.join(project_root, "alembic"))
 
+
 def main():
     revision = "-1"
     if len(sys.argv) > 1:
@@ -20,6 +21,7 @@ def main():
     print(f"Using database URL: {alembic_cfg.get_main_option('sqlalchemy.url')}")
     command.downgrade(alembic_cfg, revision)
     print("Database downgrade completed.")
+
 
 if __name__ == "__main__":
     main()
