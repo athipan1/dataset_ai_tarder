@@ -17,27 +17,6 @@ logger = logging.getLogger(__name__)
 engine = create_engine(settings.DATABASE_URL, pool_recycle=3600, echo=False) # Set echo=True for debugging SQL
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# --- ArchivedTrade Table Definition (Conceptual) ---
-# IMPORTANT: This schema MUST be created via an Alembic migration, not here.
-# This is just for illustrating what the `archived_trades` table might look like.
-#
-# CREATE TABLE archived_trades (
-#     id INTEGER NOT NULL, -- Original trade ID
-#     user_id INTEGER,
-#     symbol VARCHAR,
-#     quantity NUMERIC(10, 2),
-#     price NUMERIC(10, 4),
-#     timestamp TIMESTAMP WITH TIME ZONE,
-#     trade_type VARCHAR(10), -- Match length with TradeType enum values
-#     archived_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-#     PRIMARY KEY (id),
-#     INDEX ix_archived_trades_timestamp (timestamp),
-#     INDEX ix_archived_trades_user_id (user_id),
-#     INDEX ix_archived_trades_symbol (symbol)
-# );
-#
-# You would then create a model `ai_trader/models/archived_trade.py` for this.
-
 ARCHIVED_TRADES_TABLE_NAME = "archived_trades"
 
 def check_archived_trades_table_exists(session: SQLAlchemySession) -> bool:
@@ -60,8 +39,6 @@ def archive_trades_to_db_table(session: SQLAlchemySession, trades_to_archive: li
         return 0
 
     archived_count = 0
-    # Note: This assumes ARCHIVED_TRADES_TABLE_NAME has columns matching the Trade model's attributes.
-    # A proper ORM model for ArchivedTrade would be better here.
     insert_stmt = text(f"""
         INSERT INTO {ARCHIVED_TRADES_TABLE_NAME} (id, user_id, symbol, quantity, price, "timestamp", trade_type, archived_at)
         VALUES (:id, :user_id, :symbol, :quantity, :price, :timestamp, :trade_type, :archived_at)
@@ -78,21 +55,15 @@ def archive_trades_to_db_table(session: SQLAlchemySession, trades_to_archive: li
                 "symbol": trade.symbol,
                 "quantity": trade.quantity,
                 "price": trade.price,
-                "timestamp": trade.timestamp, # Ensure this is timezone-aware if DB column is
+                "timestamp": trade.timestamp,
                 "trade_type": trade_type_value,
                 "archived_at": datetime.now(timezone.utc)
             })
-            # Note: ON CONFLICT DO NOTHING means execute won't raise error for duplicates,
-            # but rowcount might not reflect skipped rows accurately across all DBs for bulk.
-            # For simplicity, we assume it works or we check affected_rows if dialect supports.
-            archived_count += 1 # Assume success if no exception
+            archived_count += 1
         except IntegrityError as ie:
             logger.warning(f"Integrity error archiving trade ID {trade.id} (possibly already archived): {ie}")
-            # If not using ON CONFLICT, this trade might be skipped.
-            # With ON CONFLICT DO NOTHING, this block might not be hit for PK violations.
         except Exception as e:
             logger.error(f"Error inserting trade ID {trade.id} into {ARCHIVED_TRADES_TABLE_NAME}: {e}")
-            # Re-raise to ensure transaction rollback for the current batch if something unexpected happens
             raise
 
     if archived_count > 0:
@@ -127,9 +98,6 @@ def archive_and_delete_old_trades(
         can_archive_to_db = check_archived_trades_table_exists(session)
         if not can_archive_to_db:
             logger.warning(f"Cannot archive to DB table '{ARCHIVED_TRADES_TABLE_NAME}' as it does not exist or is not accessible.")
-            # Decide if you want to proceed with deletion only, or stop.
-            # For now, it will proceed with deletion if archive_to_db was true but table missing.
-            # Consider adding a strict mode to halt if archiving fails.
 
     total_archived_count = 0
     total_deleted_count = 0
@@ -141,12 +109,9 @@ def archive_and_delete_old_trades(
 
         while attempt < max_retries:
             try:
-                # Fetch a batch of trades to process
-                # Using with_for_update for row-level locking if supported (e.g., PostgreSQL)
-                # skip_locked=True allows concurrent workers to grab different rows
                 trade_query = session.query(Trade)\
                     .filter(Trade.timestamp < cutoff_date)\
-                    .order_by(Trade.id) # Order for consistent batching
+                    .order_by(Trade.id)
 
                 if session.bind.dialect.name == 'postgresql' and not dry_run:
                     trade_query = trade_query.with_for_update(skip_locked=True)
@@ -156,7 +121,7 @@ def archive_and_delete_old_trades(
                 if not trades_in_batch:
                     logger.info("No more old trades found to process.")
                     running = False
-                    break # Break from retry loop
+                    break
 
                 logger.info(f"Fetched {len(trades_in_batch)} trades for current batch (Attempt {attempt + 1}).")
 
@@ -165,19 +130,15 @@ def archive_and_delete_old_trades(
                     archived_in_batch = archive_trades_to_db_table(session, trades_in_batch)
                 elif archive_to_db and can_archive_to_db and dry_run:
                     logger.info(f"[DRY RUN] Would attempt to archive {len(trades_in_batch)} trades to DB table.")
-                    archived_in_batch = len(trades_in_batch) # Simulate for counting
+                    archived_in_batch = len(trades_in_batch)
 
-                # Delete the original trades from the 'trades' table
                 deleted_in_batch = 0
                 if not dry_run:
-                    if trades_in_batch: # Ensure there's something to delete
+                    if trades_in_batch:
                         for trade_to_delete in trades_in_batch:
                              session.delete(trade_to_delete)
-                        # `session.flush()` could be called here to perform deletes before commit
-                        # and get accurate counts, but commit will do it anyway.
-                        # For simplicity, assume all fetched trades are deleted on commit.
                         deleted_in_batch = len(trades_in_batch)
-                else: # Dry run delete
+                else:
                     deleted_in_batch = len(trades_in_batch)
                     logger.info(f"[DRY RUN] Would delete {deleted_in_batch} trades from the original table.")
 
@@ -191,7 +152,7 @@ def archive_and_delete_old_trades(
                     f"Batch processed: Archived={archived_in_batch}, Deleted={deleted_in_batch}. "
                     f"Total cumulative: Archived={total_archived_count}, Deleted={total_deleted_count}."
                 )
-                break # Success for this batch, break from retry loop
+                break
 
             except OperationalError as oe:
                 logger.warning(f"OperationalError (e.g., lock timeout) on attempt {attempt + 1}/{max_retries}: {oe}")
@@ -202,15 +163,15 @@ def archive_and_delete_old_trades(
                     time.sleep(retry_delay_seconds)
                 else:
                     logger.error("Max retries reached for the current batch due to OperationalError. Skipping this batch.")
-                    running = False # Stop processing further batches if one fails repeatedly
+                    running = False
                     break
             except Exception as e:
                 logger.error(f"Unexpected error processing batch: {e}", exc_info=True)
                 if not dry_run: session.rollback()
-                running = False # Stop on unexpected errors
-                break # Break from retry loop and stop processing
+                running = False
+                break
 
-        if not trades_in_batch and attempt < max_retries : # No data found, and not due to retries exhausting
+        if not trades_in_batch and attempt < max_retries :
             running = False
 
 
@@ -264,4 +225,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
