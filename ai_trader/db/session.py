@@ -31,6 +31,9 @@ elif DATABASE_URL.startswith("postgresql"):
 
 engine = create_engine(DATABASE_URL, **engine_args)
 
+# The call to register_audit_listeners() will be moved to a higher-level entry point
+# (e.g., ai_trader/__init__.py or main application setup) to break circular dependency.
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
