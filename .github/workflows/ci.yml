@@ -2,27 +2,68 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ] # Best practice to quote branch names
   pull_request:
-    branches: [ main ]
+    branches: [ "main" ]
 
 jobs:
-  build:
+  build_and_test: # Renamed job for clarity
     runs-on: ubuntu-latest
 
+    # Optional: Add PostgreSQL service for more comprehensive testing
+    # services:
+    #   postgres:
+    #     image: postgres:13-alpine # Specify your desired PostgreSQL version
+    #     env:
+    #       POSTGRES_USER: test_ci_user
+    #       POSTGRES_PASSWORD: test_ci_password
+    #       POSTGRES_DB: ai_trader_ci_test_db
+    #     ports:
+    #       - 5432:5432 # Map container port to host port for the job
+    #     # Options to wait for PostgreSQL to be ready
+    #     options: >-
+    #       --health-cmd pg_isready
+    #       --health-interval 10s
+    #       --health-timeout 5s
+    #       --health-retries 5
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4 # Updated to v4
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5 # Updated to v5
         with:
-          python-version: '3.11'
+          python-version: '3.11' # Specify your project's Python version
+          cache: 'pip' # Cache pip dependencies
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          # Ensure psycopg2-binary (or appropriate DB driver) is in requirements.txt if using a real DB service
+
       - name: Lint with flake8
-        run: flake8 .
-      - name: Run database migrations
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Run database migrations (on primary CI database)
+        env:
+          # This DATABASE_URL will be used by ai_trader.core.config.settings
+          # when scripts/upgrade_db.py runs.
+          # Default is SQLite file, but can be overridden to use the Postgres service if enabled.
+          # DATABASE_URL: "postgresql://test_ci_user:test_ci_password@localhost:5432/ai_trader_ci_test_db"
+          # Add other env vars required by your app_settings for db connection here
+          SECRET_KEY: "dummy_secret_for_ci_migrations" # If your config setup needs it
         run: python scripts/upgrade_db.py
+
       - name: Test with pytest
-        run: pytest
+        env:
+          # This TEST_DB_URL will be picked up by tests/test_migrations.py
+          # By default, test_migrations.py uses SQLite in-memory.
+          # To make migration tests use the PostgreSQL service (if enabled above), uncomment the next line:
+          # TEST_DB_URL: "postgresql://test_ci_user:test_ci_password@localhost:5432/ai_trader_ci_test_db"
+
+          # Other environment variables that might be needed by your application during tests
+          SECRET_KEY: "dummy_secret_for_ci_tests" # If settings/app setup needs it
+          # PYTHONASYNCIODEBUG: "1" # Optional: for more verbose asyncio errors if using async
+        run: pytest tests/ # Explicitly state the tests directory
