@@ -1,5 +1,6 @@
 SQLAlchemy
 psycopg2-binary # For PostgreSQL support
+alembic
 flake8
 pytest
 python-dotenv # For managing environment variables
