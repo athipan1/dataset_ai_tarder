@@ -1,27 +1,33 @@
 import asyncio
 import os
 import sys
-from datetime import datetime
+# from datetime import datetime # Removed F401
+
+from sqlalchemy.ext.asyncio import AsyncSession  # Third-party
+from sqlalchemy.future import select  # Third-party
+# from sqlalchemy.orm import sessionmaker # Removed F401
+# from sqlalchemy import create_engine # Removed F401
+
 
 # Add project root to Python path
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
-
-from ai_trader.db.session import get_async_engine, get_db_session_context # Assuming this provides async session
-from ai_trader.models import (
+# Local application imports
+from ai_trader.db.session import (  # noqa: E402
+    get_db_session_context,  # Removed get_async_engine F401
+)  # Assuming this provides async session
+from ai_trader.models import (  # noqa: E402
     User,
     Asset,
     Strategy,
     AssetType,
     # Trade, TradeType, Order, OrderStatus, OrderType, OrderSide # For more advanced seeding
 )
-from ai_trader.db.base import Base # To create tables if run standalone on a fresh DB (for testing seed script)
+# from ai_trader.db.base import ( # Removed F401
+#     Base,
+# )  # To create tables if run standalone on a fresh DB (for testing seed script)
 
 # Basic password hashing - in a real app, use passlib or similar
 # For seeding, we might store a known hash or a plain password to be hashed by app logic later
@@ -29,7 +35,8 @@ from ai_trader.db.base import Base # To create tables if run standalone on a fre
 # A common practice for dev is to have a known weak password like 'password'
 # HASHED_DEMO_PASSWORD = "some_pre_hashed_password_for_demo_user"
 # Or, if your User model or auth logic handles hashing on create:
-DEMO_PASSWORD = "password123" # This would need to be hashed by user creation logic
+DEMO_PASSWORD = "password123"  # This would need to be hashed by user creation logic
+
 
 async def seed_data(db_session: AsyncSession):
     """
@@ -65,19 +72,41 @@ async def seed_data(db_session: AsyncSession):
         demo_user = User(
             username="demo_user",
             email="demo@example.com",
-            hashed_password="fake_hashed_password_for_demo" # Replace with actual hash if needed
+            hashed_password="fake_hashed_password_for_demo",  # Replace with actual hash if needed
         )
         db_session.add(demo_user)
-        await db_session.flush() # To get demo_user.id for strategies
-        print(f"Demo user created with ID: {demo_user.id}")
-
+        await db_session.flush()  # To get demo_user.id for strategies
+        user_creation_message = (
+            f"Demo user created with ID: {demo_user.id}"  # noqa: E501
+        )
+        print(user_creation_message)
 
     # Create Assets
     assets_to_create = [
-        {"symbol": "BTCUSD", "name": "Bitcoin USD", "asset_type": AssetType.CRYPTO, "exchange": "Various"},
-        {"symbol": "ETHUSD", "name": "Ethereum USD", "asset_type": AssetType.CRYPTO, "exchange": "Various"},
-        {"symbol": "AAPL", "name": "Apple Inc.", "asset_type": AssetType.STOCK, "exchange": "NASDAQ"},
-        {"symbol": "EURUSD", "name": "Euro US Dollar", "asset_type": AssetType.FOREX, "exchange": "FXCM"},
+        {
+            "symbol": "BTCUSD",
+            "name": "Bitcoin USD",
+            "asset_type": AssetType.CRYPTO,
+            "exchange": "Various",
+        },
+        {
+            "symbol": "ETHUSD",
+            "name": "Ethereum USD",
+            "asset_type": AssetType.CRYPTO,
+            "exchange": "Various",
+        },
+        {
+            "symbol": "AAPL",
+            "name": "Apple Inc.",
+            "asset_type": AssetType.STOCK,
+            "exchange": "NASDAQ",
+        },
+        {
+            "symbol": "EURUSD",
+            "name": "Euro US Dollar",
+            "asset_type": AssetType.FOREX,
+            "exchange": "FXCM",
+        },
     ]
 
     for asset_data in assets_to_create:
@@ -91,18 +120,20 @@ async def seed_data(db_session: AsyncSession):
             db_session.add(asset)
             print(f"Asset {asset_data['symbol']} created.")
 
-    await db_session.flush() # Ensure assets are created before strategies that might reference them (though not directly here)
+    await db_session.flush()  # Ensure assets are created before strategies that might reference them (though not directly here)
 
     # Create a Strategy for the demo user
-    strategy_exists_stmt = select(Strategy).where(Strategy.name == "Demo RSI Strategy", Strategy.user_id == demo_user.id)
+    strategy_exists_stmt = select(Strategy).where(
+        Strategy.name == "Demo RSI Strategy", Strategy.user_id == demo_user.id
+    )
     result = await db_session.execute(strategy_exists_stmt)
     existing_strategy = result.scalars().first()
 
     if existing_strategy:
         print("Demo RSI Strategy already exists for demo_user.")
     else:
-        if demo_user.id is None: # Should not happen if flushed
-            await db_session.refresh(demo_user, ['id'])
+        if demo_user.id is None:  # Should not happen if flushed
+            await db_session.refresh(demo_user, ["id"])
 
         demo_strategy = Strategy(
             user_id=demo_user.id,
@@ -121,7 +152,9 @@ async def seed_data(db_session: AsyncSession):
         await db_session.rollback()
         print(f"Error during data seeding commit: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 async def main():
     # This main function is primarily for running the seed script directly.
@@ -135,7 +168,7 @@ async def main():
     # For simplicity, if your get_async_engine doesn't read from env/config, you might need:
     # from ai_trader.db.session import DATABASE_URL # if you have this constant
     # engine = get_async_engine(DATABASE_URL)
-    engine = get_async_engine() # Assuming this function can get the URL
+    # engine = get_async_engine()  # F841 - Removed. Assuming this function can get the URL
 
     # Optional: Create tables if they don't exist (useful for standalone script run on empty DB)
     # This is not strictly necessary if migrations are always run first.
@@ -143,10 +176,10 @@ async def main():
     #     await conn.run_sync(Base.metadata.create_all)
     # print("Tables ensured (created if not exist).")
 
-
     # Use a context manager for the session
-    async with get_db_session_context() as db: # Assuming get_db_session_context is an async context manager
+    async with get_db_session_context() as db:  # Assuming get_db_session_context is an async context manager
         await seed_data(db)
+
 
 if __name__ == "__main__":
     print("Running seed_data.py script...")

@@ -18,23 +18,25 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 import os
 import sys
+
 # Ensure the project root (containing the 'ai_trader' package) is in the path.
 # alembic.ini's prepend_sys_path = . also helps if alembic is run from project root.
 # The path from env.py (in alembic/env.py) to project root is two levels up.
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 # Import Base from ai_trader.models to ensure all models are loaded
 # when Base.metadata is accessed.
-from ai_trader.models import Base # noqa: E402
+from ai_trader.models import Base  # noqa: E402
+
 # Explicitly import the modules containing the new tables
 # to ensure they are registered with Base.metadata
-from ai_trader.models import audit_log # noqa: E402
-from ai_trader.models import strategy_version # noqa: E402
-from ai_trader.models import trade_version # noqa: E402
-from ai_trader.models import daily_profit # noqa: E402
-from ai_trader.models import monthly_summary # noqa: E402
+from ai_trader.models import audit_log  # noqa: E402, F401
+from ai_trader.models import strategy_version  # noqa: E402, F401
+from ai_trader.models import trade_version  # noqa: E402, F401
+from ai_trader.models import daily_profit  # noqa: E402, F401
+from ai_trader.models import monthly_summary  # noqa: E402, F401
 
 
 target_metadata = Base.metadata
@@ -83,9 +85,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

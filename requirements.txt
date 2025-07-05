@@ -6,3 +6,4 @@ pytest
 python-dotenv # For managing environment variables
 aiosqlite # For async SQLite operations
 # asyncpg # For async PostgreSQL operations (if/when needed)
+black # Python code formatter

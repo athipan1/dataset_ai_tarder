@@ -1,21 +1,34 @@
 import asyncio
 import os
 import sys
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta  # Removed datetime F401
 from decimal import Decimal
-from sqlalchemy import func, select, delete
+
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.dialects.sqlite import DATE # For casting DateTime to Date in SQLite group by
+# from sqlalchemy.dialects.sqlite import ( # Removed DATE F401
+#     DATE,
+# )  # For casting DateTime to Date in SQLite group by
 
 # Add project root to Python path
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from ai_trader.db.session import get_async_engine, get_db_session_context
-from ai_trader.models import Trade, DailyProfit, MonthlySummary, User, Strategy, TradeType
+from ai_trader.db.session import get_db_session_context  # noqa: E402; removed get_async_engine
+from ai_trader.models import (  # noqa: E402
+    Trade,
+    DailyProfit,
+    MonthlySummary,
+    # User, # Removed F401
+    # Strategy, # Removed F401
+    TradeType,
+)
 
-async def calculate_and_store_daily_profits(db: AsyncSession, specific_date: date = None):
+
+async def calculate_and_store_daily_profits(
+    db: AsyncSession, specific_date: date = None
+):
     """
     Calculates profit from trades for a specific day (or yesterday if not specified)
     and stores it in the DailyProfit table.
@@ -31,12 +44,14 @@ async def calculate_and_store_daily_profits(db: AsyncSession, specific_date: dat
     This is a basic cash flow view, not a true PnL of asset appreciation.
     """
     if specific_date is None:
-        specific_date = date.today() - timedelta(days=1) # Default to yesterday
+        specific_date = date.today() - timedelta(days=1)  # Default to yesterday
 
     print(f"Calculating daily profits for: {specific_date}")
 
     # Delete existing entries for this date to avoid duplicates if re-run
-    await db.execute(delete(DailyProfit).where(DailyProfit.profit_date == specific_date))
+    await db.execute(
+        delete(DailyProfit).where(DailyProfit.profit_date == specific_date)
+    )
 
     # Group by user_id, strategy_id (nullable), and the date part of trade.executed_at
     # Note: Grouping by executed_at requires casting to date for SQLite.
@@ -57,9 +72,12 @@ async def calculate_and_store_daily_profits(db: AsyncSession, specific_date: dat
             func.sum(Trade.price * Trade.quantity).label("total_sell_value"),
             func.count(Trade.id).label("sell_trade_count"),
         )
-        .where(func.strftime('%Y-%m-%d', Trade.executed_at) == specific_date.strftime('%Y-%m-%d'))
+        .where(
+            func.strftime("%Y-%m-%d", Trade.executed_at)
+            == specific_date.strftime("%Y-%m-%d")
+        )
         .where(Trade.trade_type == TradeType.SELL)
-        .group_by(Trade.user_id) # Add Trade.strategy_id if grouping by strategy
+        .group_by(Trade.user_id)  # Add Trade.strategy_id if grouping by strategy
     )
     sell_results = (await db.execute(sell_trades_stmt)).fetchall()
 
@@ -69,33 +87,45 @@ async def calculate_and_store_daily_profits(db: AsyncSession, specific_date: dat
             Trade.user_id,
             # Trade.strategy_id, # Add if grouping by strategy
             func.sum(Trade.price * Trade.quantity).label("total_buy_value"),
-            func.count(Trade.id).label("buy_trade_count")
+            func.count(Trade.id).label("buy_trade_count"),
         )
-        .where(func.strftime('%Y-%m-%d', Trade.executed_at) == specific_date.strftime('%Y-%m-%d'))
+        .where(
+            func.strftime("%Y-%m-%d", Trade.executed_at)
+            == specific_date.strftime("%Y-%m-%d")
+        )
         .where(Trade.trade_type == TradeType.BUY)
-        .group_by(Trade.user_id) # Add Trade.strategy_id if grouping by strategy
+        .group_by(Trade.user_id)  # Add Trade.strategy_id if grouping by strategy
     )
     buy_results = (await db.execute(buy_trades_stmt)).fetchall()
 
-    daily_profits_data = {} # Key: (user_id), Value: {profit, trades, volume}
+    daily_profits_data = {}  # Key: (user_id), Value: {profit, trades, volume}
 
     for row in sell_results:
         key = (row.user_id,)
         if key not in daily_profits_data:
-            daily_profits_data[key] = {"profit": Decimal(0), "trades": 0, "volume": Decimal(0)}
+            daily_profits_data[key] = {
+                "profit": Decimal(0),
+                "trades": 0,
+                "volume": Decimal(0),
+            }
         daily_profits_data[key]["profit"] += Decimal(row.total_sell_value or 0)
         daily_profits_data[key]["trades"] += row.sell_trade_count or 0
         daily_profits_data[key]["volume"] += Decimal(row.total_sell_value or 0)
 
-
     for row in buy_results:
         key = (row.user_id,)
         if key not in daily_profits_data:
-            daily_profits_data[key] = {"profit": Decimal(0), "trades": 0, "volume": Decimal(0)}
+            daily_profits_data[key] = {
+                "profit": Decimal(0),
+                "trades": 0,
+                "volume": Decimal(0),
+            }
         # Subtract buy value for profit calculation
         daily_profits_data[key]["profit"] -= Decimal(row.total_buy_value or 0)
         daily_profits_data[key]["trades"] += row.buy_trade_count or 0
-        daily_profits_data[key]["volume"] += Decimal(row.total_buy_value or 0) # Volume includes both
+        daily_profits_data[key]["volume"] += Decimal(
+            row.total_buy_value or 0
+        )  # Volume includes both
 
     # Store results
     for key, data in daily_profits_data.items():
@@ -107,16 +137,21 @@ async def calculate_and_store_daily_profits(db: AsyncSession, specific_date: dat
             # strategy_id=strategy_id, # if used
             total_profit=data["profit"],
             total_trades=data["trades"],
-            total_volume=data["volume"]
+            total_volume=data["volume"],
         )
         db.add(daily_profit_entry)
-        print(f"  Stored daily profit for user {user_id} on {specific_date}: Profit={data['profit']}, Trades={data['trades']}")
+        print(
+            f"  Stored daily profit for user {user_id} on {specific_date}: "
+            f"Profit={data['profit']}, Trades={data['trades']}"
+        )
 
     await db.commit()
     print(f"Daily profits calculation complete for {specific_date}.")
 
 
-async def calculate_and_store_monthly_summaries(db: AsyncSession, year: int = None, month: int = None):
+async def calculate_and_store_monthly_summaries(
+    db: AsyncSession, year: int = None, month: int = None
+):
     """
     Calculates summaries from DailyProfit table for a specific month (or previous month if not specified)
     and stores it in the MonthlySummary table.
@@ -132,7 +167,9 @@ async def calculate_and_store_monthly_summaries(db: AsyncSession, year: int = No
     print(f"Calculating monthly summary for: {year}-{month:02d}")
 
     # Delete existing entries for this month to avoid duplicates
-    await db.execute(delete(MonthlySummary).where(MonthlySummary.month_year == month_start_date))
+    await db.execute(
+        delete(MonthlySummary).where(MonthlySummary.month_year == month_start_date)
+    )
 
     # Aggregate from DailyProfit table
     stmt = (
@@ -141,10 +178,13 @@ async def calculate_and_store_monthly_summaries(db: AsyncSession, year: int = No
             # DailyProfit.strategy_id, # If daily profits are by strategy
             func.sum(DailyProfit.total_profit).label("monthly_profit"),
             func.sum(DailyProfit.total_trades).label("monthly_trades"),
-            func.sum(DailyProfit.total_volume).label("monthly_volume")
+            func.sum(DailyProfit.total_volume).label("monthly_volume"),
         )
-        .where(func.strftime('%Y-%m', DailyProfit.profit_date) == month_start_date.strftime('%Y-%m'))
-        .group_by(DailyProfit.user_id) # Add DailyProfit.strategy_id if used
+        .where(
+            func.strftime("%Y-%m", DailyProfit.profit_date)
+            == month_start_date.strftime("%Y-%m")
+        )
+        .group_by(DailyProfit.user_id)  # Add DailyProfit.strategy_id if used
     )
 
     results = (await db.execute(stmt)).fetchall()
@@ -156,19 +196,22 @@ async def calculate_and_store_monthly_summaries(db: AsyncSession, year: int = No
             # strategy_id=row.strategy_id, # if used
             total_profit=Decimal(row.monthly_profit or 0),
             total_trades=row.monthly_trades or 0,
-            total_volume=Decimal(row.monthly_volume or 0)
+            total_volume=Decimal(row.monthly_volume or 0),
         )
         db.add(monthly_summary_entry)
-        print(f"  Stored monthly summary for user {row.user_id} for {year}-{month:02d}: Profit={row.monthly_profit}, Trades={row.monthly_trades}")
+        print(
+            f"  Stored monthly summary for user {row.user_id} for {year}-{month:02d}: "
+            f"Profit={row.monthly_profit}, Trades={row.monthly_trades}"
+        )
 
     await db.commit()
     print(f"Monthly summary calculation complete for {year}-{month:02d}.")
 
 
 async def main():
-    engine = get_async_engine()
+    # engine = get_async_engine() # F841 - Removed
     # Optionally create tables if they don't exist - useful for testing this script standalone
-    # async with engine.begin() as conn:
+    # async with get_async_engine().begin() as conn: # If engine is needed here, get it directly
     #     from ai_trader.db.base import Base
     #     await conn.run_sync(Base.metadata.create_all)
 
@@ -181,7 +224,10 @@ async def main():
         await calculate_and_store_daily_profits(db, specific_date=yesterday)
 
         # For monthly, calculate for the month of 'yesterday'
-        await calculate_and_store_monthly_summaries(db, year=yesterday.year, month=yesterday.month)
+        await calculate_and_store_monthly_summaries(
+            db, year=yesterday.year, month=yesterday.month
+        )
+
 
 if __name__ == "__main__":
     print("Running populate_analytics.py script...")

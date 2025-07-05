@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker # noqa E402 -> Moved up
+from contextlib import asynccontextmanager # noqa E402 -> Moved up
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL is None:
@@ -28,14 +31,21 @@ elif DATABASE_URL.startswith("postgresql"):
     # engine_args["connect_args"] = {"options": "-csearch_path=my_schema"}
     pass
 
-engine = create_engine(DATABASE_URL, **engine_args) # Synchronous engine
+engine = create_engine(DATABASE_URL, **engine_args)  # Synchronous engine
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine) # Synchronous sessionmaker
+SessionLocal = sessionmaker(
+    autocommit=False, autoflush=False, bind=engine
+)  # Synchronous sessionmaker
 
 
 # --- Asynchronous Setup ---
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker # noqa E402
-from contextlib import asynccontextmanager # noqa E402
+# Imports moved to the top of the file to resolve E402
+# from sqlalchemy.ext.asyncio import (
+#     create_async_engine,
+#     AsyncSession,
+#     async_sessionmaker,
+# )
+# from contextlib import asynccontextmanager
 
 # Construct the async DATABASE_URL. For SQLite, it's often prefixed with 'sqlite+aiosqlite:///'
 # For PostgreSQL, 'postgresql+asyncpg://'
@@ -43,7 +53,9 @@ ASYNC_DATABASE_URL = None
 if DATABASE_URL.startswith("sqlite"):
     ASYNC_DATABASE_URL = DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
 elif DATABASE_URL.startswith("postgresql"):
-    ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+    ASYNC_DATABASE_URL = DATABASE_URL.replace(
+        "postgresql://", "postgresql+asyncpg://", 1
+    )
 else:
     # Potentially raise an error or log a warning if the DB type is not supported for async
     print(f"Warning: Async database URL could not be determined for: {DATABASE_URL}")
@@ -61,7 +73,7 @@ if ASYNC_DATABASE_URL:
     AsyncSessionLocal = async_sessionmaker(
         bind=async_engine,
         class_=AsyncSession,
-        expire_on_commit=False, # Good default for async sessions
+        expire_on_commit=False,  # Good default for async sessions
         autocommit=False,
         autoflush=False,
     )
@@ -73,19 +85,24 @@ else:
 def get_async_engine():
     """Returns the globally configured async engine."""
     if not async_engine:
-        raise RuntimeError(f"Async engine not initialized. ASYNC_DATABASE_URL: {ASYNC_DATABASE_URL}")
+        raise RuntimeError(
+            f"Async engine not initialized. ASYNC_DATABASE_URL: {ASYNC_DATABASE_URL}"
+        )
     return async_engine
+
 
 @asynccontextmanager
 async def get_db_session_context() -> AsyncSession:
     """Provides an async database session via an async context manager."""
     if not AsyncSessionLocal:
-        raise RuntimeError("AsyncSessionLocal not initialized. Check ASYNC_DATABASE_URL configuration.")
+        raise RuntimeError(
+            "AsyncSessionLocal not initialized. Check ASYNC_DATABASE_URL configuration."
+        )
 
     session: AsyncSession = AsyncSessionLocal()
     try:
         yield session
-        await session.commit() # Default commit on successful exit from context
+        await session.commit()  # Default commit on successful exit from context
     except Exception:
         await session.rollback()
         raise
@@ -103,6 +120,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 # Example of using the session for a standalone script:
 # if __name__ == "__main__":
