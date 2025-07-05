@@ -290,7 +290,7 @@ class TradeAnalytics(Base):
     total_trades = Column(Integer, nullable=False)
     win_rate = Column(Float, nullable=False) # Percentage, e.g., 0.75 for 75%
     total_pnl = Column(Float, nullable=False) # Profit and Loss
-    avg_risk_reward_ratio = Column(Float, nullable=True) # Renamed for clarity
+    avg_risk_reward = Column(Float, nullable=True) # Field name changed as per test
     max_drawdown = Column(Float, nullable=True) # Percentage or absolute value
     analysis_date = Column(Date, nullable=False, default=func.current_date()) # Changed to Date, added default
     notes = Column(Text, nullable=True)
