@@ -44,7 +44,7 @@ def run_alembic_upgrade():
             print("Alembic upgrade successful.")
             if result.stdout:
                 print("Output:\n", result.stdout)
-            if result.stderr: # Sometimes alembic info goes to stderr
+            if result.stderr:  # Sometimes alembic info goes to stderr
                 print("Info/Warnings from Alembic (stderr):\n", result.stderr)
 
         else:
@@ -64,18 +64,21 @@ def run_alembic_upgrade():
                     db_file_part = db_url.split(":///")[1]
                     abs_db_file = os.path.join(PROJECT_ROOT, db_file_part) \
                         if not os.path.isabs(db_file_part) else db_file_part
-                    print(f"This is common if the SQLite database ('{os.path.basename(abs_db_file)}') "
-                          "was previously initialized")
-                    print("using a method other than Alembic (e.g., SQLAlchemy's create_all).")
+                    db_name = os.path.basename(abs_db_file)
+                    print(f"This is common if the SQLite database ('{db_name}') had been")
+                    print("previously initialized using a method other than Alembic")
+                    print("(e.g., SQLAlchemy's create_all).")
                     print("\nTo resolve this for a new Alembic setup with SQLite:")
-                    print(f"  1. Ensure no critical data is in '{os.path.basename(abs_db_file)}'.")
+                    print(f"  1. Ensure no critical data is in '{db_name}'.")
                     print(f"  2. Delete the SQLite database file: rm \"{abs_db_file}\"")
-                    print(f"  3. Re-run this script: python {os.path.basename(__file__)}")
+                    script_name = os.path.basename(__file__)
+                    print(f"  3. Re-run this script: python {script_name}")
                 else:
                     print("This can happen if the database was previously initialized by other means.")
-                    print("For non-SQLite databases, you might need to manually drop tables or")
-                    print("use `alembic stamp head` if the schema already matches the latest revision.")
-                print("--------------------------------------------------------------------\n")
+                    print("For non-SQLite databases, you might need to manually drop tables or use")
+                    print("`alembic stamp head` if schema matches")  # Shortened line 84
+                    print("the latest revision.")
+                print("-----------------------------\n")  # Shortened line 86
             elif "can't locate revision identified by" in output_combined:
                 print("\n--------------------------------------------------------------------")
                 print("ERROR: Alembic - Can't locate revision.")

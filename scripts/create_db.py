@@ -11,8 +11,8 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 # Local application imports
-from ai_trader.db.init_db import init_db  # noqa: E402
-from ai_trader.db.session import engine  # noqa: E402, engine is already configured in session.py
+# from ai_trader.db.init_db import init_db  # noqa: E402 - No longer used directly in this script
+# from ai_trader.db.session import engine  # noqa: E402 - No longer used directly in this script
 
 
 def load_environment_variables():
