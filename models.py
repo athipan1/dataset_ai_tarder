@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Enum, ForeignKey, Text, Index, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Enum as SQLAlchemyEnum, ForeignKey, Text, Index, JSON
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
 import datetime
@@ -31,6 +31,9 @@ class Asset(Base):
     price_data = relationship("PriceData", back_populates="asset")
     signals = relationship("Signal", back_populates="asset")
     orders = relationship("Order", back_populates="asset")
+    technical_indicators = relationship("TechnicalIndicator", back_populates="asset") # New relationship
+    target_labels = relationship("TargetLabel", back_populates="asset") # New relationship
+
 
 class Strategy(Base):
     __tablename__ = "strategies"
@@ -64,9 +67,13 @@ class PriceData(Base):
     source = Column(String, nullable=False)
 
     asset = relationship("Asset", back_populates="price_data")
+    # Relationship to indicators calculated from this price point
+    indicators = relationship("TechnicalIndicator", back_populates="price_data_point")
+
 
     __table_args__ = (
         Index("idx_asset_timestamp_source", "asset_id", "timestamp", "source", unique=True),
+        Index("idx_pricedata_timestamp", "timestamp") # Added for queries across assets by timestamp
     )
 
 class SignalType(enum.Enum):
@@ -81,7 +88,7 @@ class Signal(Base):
     asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
     strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False)
     timestamp = Column(DateTime, nullable=False, index=True)
-    signal_type = Column(Enum(SignalType), nullable=False, index=True)
+    signal_type = Column(SQLAlchemyEnum(SignalType), nullable=False, index=True)
     confidence_score = Column(Float, nullable=True) # Value between 0 and 1
     risk_score = Column(Float, nullable=True) # Risk score associated with the signal
     price_at_signal = Column(Float, nullable=True) # Price when the signal was generated
@@ -115,21 +122,23 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Optional: if orders are user-specific
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
-    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True) # Strategy that triggered this order
-    signal_id = Column(Integer, ForeignKey("signals.id"), nullable=True) # Signal that triggered this order
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True)
+    signal_id = Column(Integer, ForeignKey("signals.id"), nullable=True)
 
-    order_type = Column(Enum(OrderType), nullable=False, default=OrderType.MARKET)
-    order_side = Column(Enum(OrderSide), nullable=False)
-    status = Column(Enum(OrderStatus), nullable=False, default=OrderStatus.PENDING, index=True)
+    order_type = Column(SQLAlchemyEnum(OrderType), nullable=False, default=OrderType.MARKET)
+    order_side = Column(SQLAlchemyEnum(OrderSide), nullable=False)
+    status = Column(SQLAlchemyEnum(OrderStatus), nullable=False, default=OrderStatus.PENDING, index=True)
     quantity = Column(Float, nullable=False)
-    price = Column(Float, nullable=True)  # Entry price for limit/stop orders, fill price for market orders
+    price = Column(Float, nullable=True)
     filled_quantity = Column(Float, default=0.0)
     average_fill_price = Column(Float, nullable=True)
     commission = Column(Float, nullable=True)
-    exchange_order_id = Column(String, nullable=True, index=True) # ID from the exchange, if applicable
-    is_simulated = Column(Integer, default=1, nullable=False) # 0 for real, 1 for simulated/paper trading
+    exchange_order_id = Column(String, nullable=True, index=True)
+    is_simulated = Column(Integer, default=1, nullable=False)
+
+    pnl = Column(Float, nullable=True) # Profit and Loss for this order (NEW)
 
     created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
@@ -137,8 +146,7 @@ class Order(Base):
     user = relationship("User", back_populates="orders")
     asset = relationship("Asset", back_populates="orders")
     strategy = relationship("Strategy", back_populates="orders")
-    # A direct relationship to signal might be useful if an order is directly created from a signal
-    # signal = relationship("Signal", back_populates="orders") # If one signal can lead to one order
+    # signal = relationship("Signal", backref="order", uselist=False) # If one signal leads to max one order
 
     __table_args__ = (
         Index("idx_order_asset_strategy_created", "asset_id", "strategy_id", "created_at"),
@@ -157,14 +165,12 @@ class BacktestResult(Base):
     total_trades = Column(Integer, nullable=False)
     winning_trades = Column(Integer, nullable=False)
     losing_trades = Column(Integer, nullable=False)
-    win_rate = Column(Float, nullable=False) # winning_trades / total_trades
-    accuracy = Column(Float, nullable=True) # Accuracy of the strategy
+    win_rate = Column(Float, nullable=False)
+    accuracy = Column(Float, nullable=True)
     max_drawdown = Column(Float, nullable=False)
     sharpe_ratio = Column(Float, nullable=True)
     sortino_ratio = Column(Float, nullable=True)
-    # Other relevant metrics
-    # e.g., profit_factor, average_win, average_loss, etc.
-    parameters_used = Column(Text, nullable=True) # JSON string of parameters for this specific backtest run
+    parameters_used = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     strategy = relationship("Strategy", back_populates="backtest_results")
@@ -173,11 +179,64 @@ class BacktestResult(Base):
         Index("idx_backtest_strategy_created", "strategy_id", "created_at"),
     )
 
-# Example of how to create the tables in a database (e.g., SQLite for local dev)
+# --- New Table: TechnicalIndicator ---
+class TechnicalIndicator(Base):
+    __tablename__ = "technical_indicators"
+
+    id = Column(Integer, primary_key=True, index=True)
+    price_data_id = Column(Integer, ForeignKey("price_data.id"), nullable=False)
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False) # For easier querying
+    timestamp = Column(DateTime, nullable=False, index=True) # Should align with PriceData timestamp
+
+    indicator_name = Column(String, nullable=False)  # e.g., "RSI", "MACD_signal", "SMA_20"
+    value = Column(Float, nullable=False)
+    parameters = Column(JSON, nullable=True) # e.g., {"period": 14}
+
+    # Relationships
+    price_data_point = relationship("PriceData", back_populates="indicators")
+    asset = relationship("Asset", back_populates="technical_indicators")
+
+    __table_args__ = (
+        Index("idx_indicator_asset_timestamp_name", "asset_id", "timestamp", "indicator_name"),
+        # Ensures one unique indicator value per price point, per indicator name and its parameters (if params are part of uniqueness)
+        # If parameters are stored as JSON, ensuring uniqueness with them directly in a SQL index is tricky.
+        # The unique constraint below assumes indicator_name itself is unique for a given price_data_id.
+        # If multiple indicators of the same name but different params can exist for the same price_data_id, this unique constraint needs adjustment
+        # or parameters should be part of the index in a normalized way (e.g. parameter_hash).
+        Index("idx_indicator_price_data_id_name", "price_data_id", "indicator_name", unique=True),
+    )
+
+# --- New Enum and Table: TargetLabel ---
+class TargetLabelType(enum.Enum):
+    BUY = "BUY"
+    SELL = "SELL"
+    HOLD = "HOLD"
+    # STRONG_BUY = "STRONG_BUY" # Example of extension
+
+class TargetLabel(Base):
+    __tablename__ = "target_labels"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
+    timestamp = Column(DateTime, nullable=False) # Timestamp of the market data point this label is for
+
+    label = Column(SQLAlchemyEnum(TargetLabelType), nullable=False)
+    # Optional: details about how the label was generated
+    # label_horizon = Column(String, nullable=True) # e.g., "1h", "4h", "24h"
+    # label_generation_method = Column(String, nullable=True) # e.g., "price_increase_5percent"
+
+    asset = relationship("Asset", back_populates="target_labels")
+
+    __table_args__ = (
+        Index("idx_label_asset_timestamp", "asset_id", "timestamp", unique=True), # One label per asset per timestamp
+    )
+
+
+# Example of how to create the tables in a database
 if __name__ == "__main__":
     # For SQLite, the file will be created in the same directory
-    engine = create_engine("sqlite:///./ai_trader.db")
+    engine = create_engine("sqlite:///./ai_trader_v2.db") # Changed db name to avoid conflict
     # For PostgreSQL, connection string would be like:
     # engine = create_engine("postgresql://user:password@host:port/database")
     Base.metadata.create_all(bind=engine)
-    print("Database tables created successfully.")
+    print("Database tables (v2) created successfully.")
