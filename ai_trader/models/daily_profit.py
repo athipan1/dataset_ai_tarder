@@ -50,7 +50,7 @@ class DailyProfit(Base):
     )
 
     def __repr__(self):
-        return (  # noqa: E501
+        return (
             f"<DailyProfit("
             f"date='{self.profit_date}', "
             f"user_id={self.user_id}, "

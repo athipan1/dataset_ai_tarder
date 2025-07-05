@@ -68,7 +68,7 @@ async def main():
     # The following f-string was split to avoid E501:
     abs_script_path = os.path.abspath(__file__)
     log_file = "/var/log/ai_trader_archive.log"
-    command_part = f"0 2 * * * /usr/bin/python3 {abs_script_path}"  # noqa: E501
+    command_part = f"0 2 * * * /usr/bin/python3 {abs_script_path}"
     redirect_part = f">> {log_file} 2>&1"
     cron_command = f"{command_part} {redirect_part}"
     # Or if even command_part is too long:

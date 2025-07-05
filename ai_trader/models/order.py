@@ -122,7 +122,7 @@ class Order(Base):
     )
 
     def __repr__(self):
-        return (  # noqa: E501
+        return (
             f"<Order("
             f"id={self.id}, "
             f"user_id={self.user_id}, "

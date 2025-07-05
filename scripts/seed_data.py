@@ -126,7 +126,7 @@ async def seed_data(db_session: AsyncSession):
 
     # Create a Strategy for the demo user
     strategy_exists_stmt = select(Strategy).where(
-        Strategy.name == "Demo RSI Strategy", Strategy.user_id == demo_user.id  # noqa: E501 (if this is the reported line)
+        Strategy.name == "Demo RSI Strategy", Strategy.user_id == demo_user.id
     )
     result = await db_session.execute(strategy_exists_stmt)
     existing_strategy = result.scalars().first()
