@@ -88,9 +88,10 @@ def upgrade() -> None:
     op.create_index(op.f('ix_trades_order_id'), 'trades', ['order_id'], unique=False)
     op.create_index(op.f('ix_trades_symbol'), 'trades', ['symbol'], unique=False)
     op.create_index(op.f('ix_trades_user_id'), 'trades', ['user_id'], unique=False)
-    op.alter_column('strategies', 'user_id',
-               existing_type=sa.INTEGER(),
-               nullable=False)
+    with op.batch_alter_table('strategies', schema=None) as batch_op:
+        batch_op.alter_column('user_id',
+                   existing_type=sa.INTEGER(),
+                   nullable=False)
     op.create_index(op.f('ix_strategies_user_id'), 'strategies', ['user_id'], unique=False)
     op.create_index('ix_strategy_name', 'strategies', ['name'], unique=False)
     op.create_index('ix_user_email', 'users', ['email'], unique=True)
@@ -105,9 +106,10 @@ def downgrade() -> None:
     op.drop_index('ix_user_email', table_name='users')
     op.drop_index('ix_strategy_name', table_name='strategies')
     op.drop_index(op.f('ix_strategies_user_id'), table_name='strategies')
-    op.alter_column('strategies', 'user_id',
-               existing_type=sa.INTEGER(),
-               nullable=True)
+    with op.batch_alter_table('strategies', schema=None) as batch_op:
+        batch_op.alter_column('user_id',
+                   existing_type=sa.INTEGER(),
+                   nullable=True)
     op.drop_index(op.f('ix_trades_user_id'), table_name='trades')
     op.drop_index(op.f('ix_trades_symbol'), table_name='trades')
     op.drop_index(op.f('ix_trades_order_id'), table_name='trades')
