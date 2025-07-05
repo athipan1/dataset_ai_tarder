@@ -1,7 +1,7 @@
 import enum
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float, DateTime, Enum as DBEnum, # Renamed Enum to DBEnum to avoid conflict
-    ForeignKey, Text, Index, JSON, Numeric, Date
+    ForeignKey, Text, Index, JSON, Numeric, Date, UniqueConstraint
 )
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
@@ -51,12 +51,12 @@ class User(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relationships from root models.py
-    strategies = relationship("Strategy", back_populates="user") # Changed from owner to user for consistency
-    orders = relationship("Order", back_populates="user")
+    strategies = relationship("Strategy", back_populates="user", passive_deletes=True)
+    orders = relationship("Order", back_populates="user") # user_id in Order is nullable, SET NULL is fine
 
     # Relationships from ai_trader/models/user.py
-    behavior_logs = relationship("UserBehaviorLog", back_populates="user")
-    trade_analytics = relationship("TradeAnalytics", back_populates="user") # This one added
+    behavior_logs = relationship("UserBehaviorLog", back_populates="user", passive_deletes=True)
+    trade_analytics = relationship("TradeAnalytics", back_populates="user", passive_deletes=True)
 
     # __table_args__ from ai_trader/models/user.py (root model didn't have specific ones)
     # Root model had implicit indices from unique=True, index=True. Explicit can be fine.
@@ -78,9 +78,9 @@ class Asset(Base):
     asset_type = Column(String, nullable=True)
     created_at = Column(DateTime, default=func.now())
 
-    price_data = relationship("PriceData", back_populates="asset")
-    signals = relationship("Signal", back_populates="asset")
-    orders = relationship("Order", back_populates="asset")
+    price_data = relationship("PriceData", back_populates="asset", passive_deletes=True)
+    signals = relationship("Signal", back_populates="asset", passive_deletes=True)
+    orders = relationship("Order", back_populates="asset", passive_deletes=True)
 
     def __repr__(self):
         return f"<Asset(id={self.id}, symbol='{self.symbol}')>"
@@ -95,17 +95,18 @@ class Strategy(Base):
     model_version = Column(String, nullable=True)
     parameters = Column(JSON, nullable=True)
     api_key = Column(String, nullable=True) # TODO: Secure this
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True) # Made nullable=False as per ai_trader/models/strategy.py, and added index
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    user = relationship("User", back_populates="strategies") # Changed from owner to user for consistency
-    signals = relationship("Signal", back_populates="strategy")
-    orders = relationship("Order", back_populates="strategy")
-    backtest_results = relationship("BacktestResult", back_populates="strategy")
-    trade_analytics = relationship("TradeAnalytics", back_populates="strategy") # This one added
+    user = relationship("User", back_populates="strategies")
+    signals = relationship("Signal", back_populates="strategy", passive_deletes=True)
+    orders = relationship("Order", back_populates="strategy") # strategy_id in Order is nullable, SET NULL is fine
+    backtest_results = relationship("BacktestResult", back_populates="strategy", passive_deletes=True)
+    trade_analytics = relationship("TradeAnalytics", back_populates="strategy", passive_deletes=True)
 
     __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_user_strategy_name"),
         Index("ix_strategy_name", "name"), # Already on column, but explicit is fine
         # user_id index already on column
     )
@@ -118,7 +119,7 @@ class PriceData(Base):
     __tablename__ = "price_data"
 
     id = Column(Integer, primary_key=True, index=True)
-    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
+    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False)
     timestamp = Column(DateTime, nullable=False, index=True)
     open = Column(Float, nullable=False)
     high = Column(Float, nullable=False)
@@ -141,8 +142,8 @@ class Signal(Base):
     __tablename__ = "signals"
 
     id = Column(Integer, primary_key=True, index=True)
-    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
-    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False)
+    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False)
+    strategy_id = Column(Integer, ForeignKey("strategies.id", ondelete="CASCADE"), nullable=False)
     timestamp = Column(DateTime, nullable=False, index=True)
     signal_type = Column(DBEnum(SignalType), nullable=False, index=True)
     confidence_score = Column(Float, nullable=True)
@@ -164,10 +165,10 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
-    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True)
-    signal_id = Column(Integer, ForeignKey("signals.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False)
+    strategy_id = Column(Integer, ForeignKey("strategies.id", ondelete="SET NULL"), nullable=True)
+    signal_id = Column(Integer, ForeignKey("signals.id"), nullable=True) # Assuming signals can be deleted without affecting orders
 
     order_type = Column(DBEnum(OrderType), nullable=False, default=OrderType.MARKET)
     order_side = Column(DBEnum(OrderSide), nullable=False)
@@ -186,8 +187,10 @@ class Order(Base):
     user = relationship("User", back_populates="orders")
     asset = relationship("Asset", back_populates="orders")
     strategy = relationship("Strategy", back_populates="orders")
+    trades = relationship("Trade", back_populates="executed_order", passive_deletes=True) # For ON DELETE CASCADE of Trade.order_id
 
     __table_args__ = (
+        Index("ix_order_status_user_created", "status", "user_id", "created_at"),
         Index("idx_order_asset_strategy_created", "asset_id", "strategy_id", "created_at"),
     )
 
@@ -199,7 +202,7 @@ class BacktestResult(Base):
     __tablename__ = "backtest_results"
 
     id = Column(Integer, primary_key=True, index=True)
-    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False)
+    strategy_id = Column(Integer, ForeignKey("strategies.id", ondelete="CASCADE"), nullable=False)
     start_time = Column(DateTime, nullable=False)
     end_time = Column(DateTime, nullable=False)
     initial_capital = Column(Float, nullable=False)
@@ -236,8 +239,8 @@ class Trade(Base):
     # user_id from ai_trader/models/trade.py, but orders already has user_id.
     # If a trade always comes from an order, this might be redundant or could link to order_id.
     # For now, keeping it as per user's request to include Trade model.
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True, index=True) # Added link to Order
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=True, index=True) # Added link to Order
 
     symbol = Column(String, nullable=False, index=True) # Asset symbol, e.g. BTCUSD. Consider ForeignKey to Asset.asset_symbol
     quantity = Column(Numeric(19, 8), nullable=False) # Adjusted precision based on typical crypto values
@@ -254,7 +257,7 @@ class Trade(Base):
     executed_order = relationship("Order") # Name it clearly if Order has a backref to trades.
 
     __table_args__ = (
-        Index("ix_trade_user_id_symbol_timestamp", "user_id", "symbol", "timestamp"),
+        Index("ix_trade_user_symbol_timestamp_type", "user_id", "symbol", "timestamp", "trade_type"),
     )
 
     def __repr__(self):
@@ -269,7 +272,7 @@ class UserBehaviorLog(Base):
     __tablename__ = "user_behavior_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     action_type = Column(String, nullable=False, index=True) # E.g., 'login', 'view_dashboard', 'execute_trade'
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     session_id = Column(String, index=True, nullable=True)
@@ -285,8 +288,8 @@ class TradeAnalytics(Base):
     __tablename__ = "trade_analytics" # This seems to be summary data.
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    strategy_id = Column(Integer, ForeignKey("strategies.id", ondelete="CASCADE"), nullable=True, index=True)
     total_trades = Column(Integer, nullable=False)
     win_rate = Column(Float, nullable=False) # Percentage, e.g., 0.75 for 75%
     total_pnl = Column(Float, nullable=False) # Profit and Loss
