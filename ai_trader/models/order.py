@@ -122,11 +122,13 @@ class Order(Base):
     )
 
     def __repr__(self):
-        return (
-            f"<Order("
-            f"id={self.id}, "
-            f"user_id={self.user_id}, "
-            f"asset_id={self.asset_id}, "
-            f"status='{self.status.value}'"
-            f")>"
-        )
+        cls_name = self.__class__.__name__
+        parts = [
+            f"<{cls_name}(",  # This f-string prefix can be just a string if no vars here
+            f"id={self.id}, ",
+            f"user_id={self.user_id}, ",
+            f"asset_id={self.asset_id}, ",
+            f"status='{self.status.value}'",
+            ")>",  # Corrected F541: No longer an f-string
+        ]
+        return "".join(parts)

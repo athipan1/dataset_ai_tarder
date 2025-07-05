@@ -51,11 +51,12 @@ class DailyProfit(Base):
 
     def __repr__(self):
         cls_name = self.__class__.__name__
-        return (
-            f"<{cls_name}("
-            f"date='{self.profit_date}', "
-            f"user_id={self.user_id}, "
-            f"strategy_id={self.strategy_id}, "
-            f"profit={self.total_profit:.2f}"
-            f")>"
-        )
+        parts = [
+            f"<{cls_name}(",
+            f"date='{self.profit_date}', ",
+            f"user_id={self.user_id}, ",
+            f"strategy_id={self.strategy_id}, ",
+            f"profit={self.total_profit:.2f}",
+            ")>",
+        ]
+        return "".join(parts)
