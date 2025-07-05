@@ -1,0 +1,5 @@
+id,symbol,name,asset_type,exchange,created_at,updated_at,deleted_at
+1,BTCUSD,Bitcoin USD,AssetType.CRYPTO,Various,2025-07-05 10:55:58,2025-07-05 10:55:58,
+2,ETHUSD,Ethereum USD,AssetType.CRYPTO,Various,2025-07-05 10:55:58,2025-07-05 10:55:58,
+3,AAPL,Apple Inc.,AssetType.STOCK,NASDAQ,2025-07-05 10:55:58,2025-07-05 10:55:58,
+4,EURUSD,Euro US Dollar,AssetType.FOREX,FXCM,2025-07-05 10:55:58,2025-07-05 10:55:58,

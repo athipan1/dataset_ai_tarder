@@ -1,0 +1,2 @@
+id,user_id,name,description,model_version,parameters,created_at,updated_at,deleted_at
+1,1,Demo RSI Strategy,A simple strategy based on Relative Strength Index.,1.0,"{'rsi_period': 14, 'buy_threshold': 30, 'sell_threshold': 70}",2025-07-05 10:55:58,2025-07-05 10:55:58,

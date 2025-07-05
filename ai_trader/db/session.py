@@ -28,11 +28,72 @@ elif DATABASE_URL.startswith("postgresql"):
     # engine_args["connect_args"] = {"options": "-csearch_path=my_schema"}
     pass
 
-engine = create_engine(DATABASE_URL, **engine_args)
+engine = create_engine(DATABASE_URL, **engine_args) # Synchronous engine
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine) # Synchronous sessionmaker
 
 
+# --- Asynchronous Setup ---
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker # noqa E402
+from contextlib import asynccontextmanager # noqa E402
+
+# Construct the async DATABASE_URL. For SQLite, it's often prefixed with 'sqlite+aiosqlite:///'
+# For PostgreSQL, 'postgresql+asyncpg://'
+ASYNC_DATABASE_URL = None
+if DATABASE_URL.startswith("sqlite"):
+    ASYNC_DATABASE_URL = DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
+elif DATABASE_URL.startswith("postgresql"):
+    ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+else:
+    # Potentially raise an error or log a warning if the DB type is not supported for async
+    print(f"Warning: Async database URL could not be determined for: {DATABASE_URL}")
+    # Fallback or error, for now, let's make it None so get_async_engine will fail clearly
+    # Or, could try to make it same as DATABASE_URL if some drivers support it directly (unlikely for async)
+
+if ASYNC_DATABASE_URL:
+    async_engine_args = {}
+    if ASYNC_DATABASE_URL.startswith("sqlite+aiosqlite"):
+        # For aiosqlite, connect_args are typically not needed unless specific pragmas are set.
+        # check_same_thread is not an issue with aiosqlite's typical async usage.
+        pass
+
+    async_engine = create_async_engine(ASYNC_DATABASE_URL, **async_engine_args)
+    AsyncSessionLocal = async_sessionmaker(
+        bind=async_engine,
+        class_=AsyncSession,
+        expire_on_commit=False, # Good default for async sessions
+        autocommit=False,
+        autoflush=False,
+    )
+else:
+    async_engine = None
+    AsyncSessionLocal = None
+
+
+def get_async_engine():
+    """Returns the globally configured async engine."""
+    if not async_engine:
+        raise RuntimeError(f"Async engine not initialized. ASYNC_DATABASE_URL: {ASYNC_DATABASE_URL}")
+    return async_engine
+
+@asynccontextmanager
+async def get_db_session_context() -> AsyncSession:
+    """Provides an async database session via an async context manager."""
+    if not AsyncSessionLocal:
+        raise RuntimeError("AsyncSessionLocal not initialized. Check ASYNC_DATABASE_URL configuration.")
+
+    session: AsyncSession = AsyncSessionLocal()
+    try:
+        yield session
+        await session.commit() # Default commit on successful exit from context
+    except Exception:
+        await session.rollback()
+        raise
+    finally:
+        await session.close()
+
+
+# --- Synchronous get_db ---
 def get_db():
     """
     Dependency injector for FastAPI or context manager for other uses.

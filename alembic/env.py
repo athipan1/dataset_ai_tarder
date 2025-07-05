@@ -25,7 +25,18 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from ai_trader.db.base import Base  # noqa: E402
+# Import Base from ai_trader.models to ensure all models are loaded
+# when Base.metadata is accessed.
+from ai_trader.models import Base # noqa: E402
+# Explicitly import the modules containing the new tables
+# to ensure they are registered with Base.metadata
+from ai_trader.models import audit_log # noqa: E402
+from ai_trader.models import strategy_version # noqa: E402
+from ai_trader.models import trade_version # noqa: E402
+from ai_trader.models import daily_profit # noqa: E402
+from ai_trader.models import monthly_summary # noqa: E402
+
+
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,

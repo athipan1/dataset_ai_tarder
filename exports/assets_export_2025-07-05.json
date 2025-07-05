@@ -1,0 +1,42 @@
+[
+    {
+        "id": 1,
+        "symbol": "BTCUSD",
+        "name": "Bitcoin USD",
+        "asset_type": "CRYPTO",
+        "exchange": "Various",
+        "created_at": "2025-07-05T10:55:58",
+        "updated_at": "2025-07-05T10:55:58",
+        "deleted_at": null
+    },
+    {
+        "id": 2,
+        "symbol": "ETHUSD",
+        "name": "Ethereum USD",
+        "asset_type": "CRYPTO",
+        "exchange": "Various",
+        "created_at": "2025-07-05T10:55:58",
+        "updated_at": "2025-07-05T10:55:58",
+        "deleted_at": null
+    },
+    {
+        "id": 3,
+        "symbol": "AAPL",
+        "name": "Apple Inc.",
+        "asset_type": "STOCK",
+        "exchange": "NASDAQ",
+        "created_at": "2025-07-05T10:55:58",
+        "updated_at": "2025-07-05T10:55:58",
+        "deleted_at": null
+    },
+    {
+        "id": 4,
+        "symbol": "EURUSD",
+        "name": "Euro US Dollar",
+        "asset_type": "FOREX",
+        "exchange": "FXCM",
+        "created_at": "2025-07-05T10:55:58",
+        "updated_at": "2025-07-05T10:55:58",
+        "deleted_at": null
+    }
+]
