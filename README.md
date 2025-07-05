@@ -4,7 +4,7 @@ This project provides a database schema and SQLAlchemy models for an AI Trader a
 
 ## Project Overview
 
-The core of the project is `models.py`, which defines the database structure using SQLAlchemy. This can be used with SQLite for local development and testing, or with PostgreSQL for more robust deployments.
+The core of the project is `ai_trader/models.py`, which defines the database structure using SQLAlchemy. Configuration is managed in `ai_trader/config.py`. This setup can be used with SQLite for local development and testing, or with PostgreSQL for more robust deployments.
 
 ## Setup and Installation
 
@@ -19,33 +19,58 @@ The core of the project is `models.py`, which defines the database structure usi
     pip install -r requirements.txt
     ```
 4.  **Database Setup:**
-    *   **SQLite (Default for local development):** The database file `ai_trader.db` will be automatically created in the project root when `models.py` is run directly (or when tables are created via a script).
+    *   **SQLite (Default for local development):** The database file (e.g., `ai_trader.db`) will be created in the project root when Alembic migrations are run.
     *   **PostgreSQL (Optional):**
         *   Ensure you have PostgreSQL server installed and running.
         *   Create a database and user.
-        *   Update the connection string in your application's configuration (see `models.py` for an example placeholder). You might use environment variables for this in a real application.
+        *   Update the connection string in your `.env` file (see `ai_trader/config.py` for how `DATABASE_URL` is loaded).
 
 ## Basic Usage
 
-To create the database tables (if they don't exist yet), you should now use the Alembic migration scripts. See the "Database Migrations (Alembic)" section below.
+To create the database tables (if they don't exist yet), you should use the Alembic migration scripts. See the "Database Migrations (Alembic)" section below.
 
 ## Project Structure
 
 -   `README.md`: This file.
--   `requirements.txt`: Python dependencies.
--   `models.py`: SQLAlchemy database models. Table creation and schema evolution is now handled by Alembic.
+-   `requirements.txt`: Python dependencies (includes `SQLAlchemy`, `alembic`, `psycopg2-binary`, `python-dotenv`, `flake8`, `black`, `isort`, `pytest`).
+-   `ai_trader/`: Main application package.
+    -   `models.py`: Consolidated SQLAlchemy database models.
+    -   `config.py`: Application configuration settings (loads from `.env`).
+    -   `db/`: Database-related modules.
+        -   `session.py`: SQLAlchemy engine and session setup.
+        -   `init_db.py`: Utility for (non-Alembic) database initialization (use with caution).
 -   `alembic/`: Directory containing Alembic migration scripts and configuration.
 -   `alembic.ini`: Alembic configuration file.
--   `scripts/`: Helper scripts for database operations.
-    -   `create_db.py`: Script to assist in initial database setup (especially for non-SQLite DBs).
+-   `scripts/`: Helper scripts for database operations and development.
+    -   `create_db.py`: Script to assist in initial database setup (primarily for non-Alembic or pre-Alembic scenarios).
     -   `upgrade_db.py`: Applies all pending database migrations.
     -   `downgrade_db.py`: Reverts database migrations.
-    -   `generate_migration.sh`: Generates a new migration file based on model changes.
--   `ai_trader.db`: SQLite database file (created and managed by Alembic migrations).
+    -   `generate_migration.sh`: Generates a new migration file based on model changes in `ai_trader/models.py`.
+-   `tests/`: Directory for unit and integration tests.
+-   `ai_trader.db`: Example SQLite database file (created and managed by Alembic migrations if SQLite is used).
+-   `.env`: Local environment variables (e.g., `DATABASE_URL`). **Ignored by Git.**
+-   `.env.example`: Example environment file.
+-   `.gitignore`: Specifies intentionally untracked files that Git should ignore.
+-   `.flake8`: Configuration for flake8 linter.
 -   `.github/workflows/ci.yml`: GitHub Actions workflow for CI (linting/testing/migrations).
 -   `LICENSE`: Project license.
 
-(Further details on project structure will be added as the project evolves, e.g., for API components, services, tests, etc.)
+(Further details on project structure will be added as the project evolves, e.g., for API components, services, etc.)
+
+## Code Quality and Linting
+
+This project uses `flake8` for linting, and `black` and `isort` for code formatting to maintain consistency.
+-   `flake8`: Checks for PEP 8 compliance and other code style issues. Configured in `.flake8`.
+-   `black`: The uncompromising Python code formatter.
+-   `isort`: Sorts imports alphabetically and automatically separates them into sections.
+
+You can run these tools locally:
+```bash
+flake8 .
+black .
+isort .
+```
+**Note:** Due to current limitations with the automated tooling environment, these tools might not have been run automatically during recent refactoring. It is recommended to run them manually to ensure code consistency.
 
 ## Database Migrations (Alembic)
 
@@ -66,17 +91,17 @@ This project uses [Alembic](https://alembic.sqlalchemy.org/) to manage database 
 ### Important Considerations for Alembic Usage
 
 *   **Avoid Mixing Schema Creation Methods**:
-    **CRITICAL**: Do **NOT** use SQLAlchemy's `Base.metadata.create_all()` (which was previously called by `init_db()` in `scripts/create_db.py`) and Alembic (`python scripts/upgrade_db.py` or `alembic upgrade head`) together on the *same live database instance*.
-    *   `Base.metadata.create_all()` directly creates tables based on your current models, bypassing Alembic's versioning.
+    **CRITICAL**: Do **NOT** use SQLAlchemy's `Base.metadata.create_all()` (which can be called by `ai_trader/db/init_db.py` if manually uncommented, or by `scripts/create_db.py` if modified) and Alembic (`python scripts/upgrade_db.py` or `alembic upgrade head`) together on the *same live database instance*.
+    *   `Base.metadata.create_all()` directly creates tables based on your current models in `ai_trader/models.py`, bypassing Alembic's versioning.
     *   Alembic creates tables based on its migration scripts and tracks schema versions in the `alembic_version` table.
     *   Using both can lead to errors like "table already exists" when running migrations, or an inconsistent database state.
-    *   **Rule of thumb**: Once you start using Alembic for a database, Alembic should be the *only* tool used to modify that database's schema.
+    *   **Rule of thumb**: Once you start using Alembic for a database, Alembic should be the *only* tool used to modify that database's schema. The `init_db.py` and `create_db.py` utilities are primarily for initial, non-Alembic setups or specific development/testing scenarios where Alembic is not being used.
 
 *   **Resetting the Database (Especially for SQLite Development)**:
     If you encounter issues like "table already exists" during an `alembic upgrade` and you're using SQLite for local development (and don't need to preserve data), the simplest solution is often to reset:
     1.  **Delete the SQLite database file**:
         ```bash
-        rm ai_trader.db  # Or the name specified in your DATABASE_URL
+        rm ai_trader.db  # Or the name specified in your DATABASE_URL in .env
         ```
     2.  **Re-apply all migrations**:
         ```bash
@@ -86,7 +111,7 @@ This project uses [Alembic](https://alembic.sqlalchemy.org/) to manage database 
 
 ### Generating New Migrations
 
-When you make changes to your SQLAlchemy models in `models.py` (e.g., add a new table, add a column, change a column type), you need to generate a new migration script:
+When you make changes to your SQLAlchemy models in `ai_trader/models.py` (e.g., add a new table, add a column, change a column type), you need to generate a new migration script:
 
 1.  Run the `generate_migration.sh` script with a descriptive message for your changes:
     ```bash

@@ -1,17 +1,18 @@
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Import settings from the centralized config file
+from ai_trader.config import settings # Updated import
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+# DATABASE_URL is now sourced from settings
+DATABASE_URL = settings.DATABASE_URL
 
 if DATABASE_URL is None:
+    # This check might be redundant if settings.DATABASE_URL already ensures a value or raises an error.
+    # However, keeping it for explicitness, or it can be removed if settings guarantees non-None.
     raise EnvironmentError(
-        "DATABASE_URL not set in environment variables. "
-        "Please create a .env file with this variable."
+        "DATABASE_URL not available from settings. "
+        "Ensure it's configured in .env or environment variables and loaded by config.py."
     )
 
 engine_args = {}
