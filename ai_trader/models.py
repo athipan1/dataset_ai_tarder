@@ -1,4 +1,5 @@
 import enum
+import datetime # Added for AuditLog timestamp default
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float, DateTime, Enum as DBEnum, # Renamed Enum to DBEnum to avoid conflict
     ForeignKey, Text, Index, JSON, Numeric, Date, UniqueConstraint
@@ -366,6 +367,30 @@ class MarketEvent(Base):
     def __repr__(self):
         return f"<MarketEvent(id={self.id}, event_type='{self.event_type}', symbol='{self.symbol}')>"
 
+
+# --- Audit Log Model ---
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    table_name = Column(String, nullable=False)
+    record_id = Column(Integer, nullable=False) # As per original task spec
+    action = Column(String, nullable=False)  # INSERT / UPDATE / DELETE
+    changed_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    changes = Column(JSON, nullable=True)  # optional: store changed fields & values
+
+    # No direct relationships needed from AuditLog to other tables,
+    # as it's a log. Foreign key to User is for identifying the user.
+
+    def __repr__(self):
+        return (
+            f"<AuditLog(id={self.id}, table='{self.table_name}', record_id='{self.record_id}', "
+            f"action='{self.action}', user_id={self.changed_by})>"
+        )
+
+
 # Example of how to create the tables in a database (e.g., SQLite for local dev)
 # This __main__ block should ideally not be run directly if using Alembic.
 # It's here for illustrative purposes or very basic, non-Alembic setups.
@@ -404,6 +429,7 @@ __all__ = [
     "UserBehaviorLog",
     "TradeAnalytics",
     "MarketEvent",
+    "AuditLog", # Added AuditLog to __all__
     "SignalType",
     "OrderStatus",
     "OrderType",

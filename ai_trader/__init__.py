@@ -1,0 +1,56 @@
+# Expose key components of the ai_trader package
+
+# Auth context for audit logging and user identification
+from . import auth_context
+from .auth_context import get_current_user_id, set_current_user_id
+
+# Event listeners for audit logging (registration is usually handled internally)
+from . import event_listeners
+
+# Database session and initialization
+from .db import session as db_session # Alias to avoid conflict if 'session' is used locally
+from .db.session import get_db, SessionLocal
+
+# Models
+from . import models
+from .models import * # Expose all models for convenience
+
+# Configuration
+from . import config
+from .config import settings
+
+
+__all__ = [
+    "auth_context",
+    "get_current_user_id",
+    "set_current_user_id",
+    "event_listeners",
+    "db_session",
+    "get_db",
+    "SessionLocal",
+    "models",
+    # All model names will be included by "from .models import *"
+    # but we can also list them explicitly if preferred, by importing them here.
+    "settings",
+    "config",
+]
+
+# Add all model names to __all__ to make them available via "from ai_trader import User"
+# This requires models.__all__ to be defined, which it is.
+if hasattr(models, '__all__'):
+    __all__.extend(models.__all__)
+    # Remove duplicates that might have been added manually above if any
+    __all__ = sorted(list(set(__all__)))
+else:
+    # Fallback if models.__all__ is not defined (though it is in our case)
+    # This would require listing them manually or introspecting models.Base.metadata.tables
+    pass
+
+# Ensure event listeners are registered when this package is imported at a high level.
+# This is an alternative to registering them in db.session.py.
+# However, registering in db.session.py is fine as it's tied to DB setup.
+# If registered here, ensure this __init__ is imported early.
+# For now, keeping registration in db.session.py as per current implementation.
+# if not event_listeners.ARE_LISTENERS_REGISTERED: # Hypothetical flag
+# event_listeners.register_audit_listeners()
+# print("AI Trader package initialized.")

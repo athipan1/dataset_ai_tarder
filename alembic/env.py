@@ -29,7 +29,7 @@ if PROJECT_ROOT not in sys.path:
 # This is crucial for Alembic autogenerate and for ensuring migrations have the correct context.
 # All models are now defined in ai_trader.models.py and use the Base from there.
 # Importing Base from ai_trader.models will make its metadata available.
-from ai_trader.models import Base, User, Asset, Strategy, PriceData, Signal, Order, BacktestResult, Trade, UserBehaviorLog, TradeAnalytics, MarketEvent  # noqa: E402, F401
+from ai_trader.models import Base, User, Asset, Strategy, PriceData, Signal, Order, BacktestResult, Trade, UserBehaviorLog, TradeAnalytics, MarketEvent, AuditLog  # noqa: E402, F401
 target_metadata = Base.metadata
 
 # Import settings from the new config module

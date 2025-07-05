@@ -31,6 +31,12 @@ elif DATABASE_URL.startswith("postgresql"):
 
 engine = create_engine(DATABASE_URL, **engine_args)
 
+# Register audit event listeners after engine is created and models are defined.
+# Ensure models are loaded before this call if they are in different modules.
+# (Models are in ai_trader.models, event_listeners imports them)
+from ai_trader.event_listeners import register_audit_listeners
+register_audit_listeners() # Call this once globally
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
