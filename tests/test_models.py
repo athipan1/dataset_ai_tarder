@@ -3,8 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, date
 
-from ai_trader.db.base import Base
-from ai_trader.models import User, Strategy, UserBehaviorLog, TradeAnalytics, MarketEvent
+from ai_trader.models import Base, User, Strategy, UserBehaviorLog, TradeAnalytics, MarketEvent
 
 # Use an in-memory SQLite database for testing
 DATABASE_URL = "sqlite:///:memory:"

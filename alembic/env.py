@@ -27,22 +27,13 @@ if PROJECT_ROOT not in sys.path:
 
 # Ensure all models are imported so Base.metadata is populated before it's assigned to target_metadata
 # This is crucial for Alembic autogenerate and for ensuring migrations have the correct context.
-import ai_trader.models.user  # noqa: E402, F401
-import ai_trader.models.strategy  # noqa: E402, F401
-import ai_trader.models.trade  # noqa: E402, F401
-import ai_trader.models.user_behavior  # noqa: E402, F401
-import ai_trader.models.trade_analytics  # noqa: E402, F401
-import ai_trader.models.market_event  # noqa: E402, F401
-# Add other models here if they define tables that Alembic should be aware of for autogenerate
-# e.g., if you create models for assets, orders, signals, etc.
-# import ai_trader.models.asset # noqa
-# import ai_trader.models.order # noqa
-
-from ai_trader.db.base import Base  # noqa: E402
+# All models are now defined in ai_trader.models.py and use the Base from there.
+# Importing Base from ai_trader.models will make its metadata available.
+from ai_trader.models import Base, User, Asset, Strategy, PriceData, Signal, Order, BacktestResult, Trade, UserBehaviorLog, TradeAnalytics, MarketEvent  # noqa: E402, F401
 target_metadata = Base.metadata
 
 # Import settings from the new config module
-from ai_trader.core.config import settings # noqa: E402
+from ai_trader.config import settings # noqa: E402
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
