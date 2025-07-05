@@ -29,10 +29,7 @@ def load_environment_variables():
         print(f".env file loaded from {dotenv_path_alt}")
         return True
 
-    print(
-        f".env file not found at {dotenv_path} or {dotenv_path_alt}. "
-        "Ensure it exists and DATABASE_URL is set."
-    )
+    print(f".env file not found at {dotenv_path} or {dotenv_path_alt}. " "Ensure it exists and DATABASE_URL is set.")
     return False
 
 
@@ -53,12 +50,8 @@ def check_sqlite_file(db_engine):
     if os.path.exists(db_file_path_abs):
         print(f"SQLite database file confirmed at: {os.path.abspath(db_file_path_abs)}")
     else:
-        print(
-            f"Warning: SQLite database file NOT found at expected location: {os.path.abspath(db_file_path_abs)}"
-        )
-        print(
-            "Ensure the DATABASE_URL in .env points to the correct relative or absolute path."
-        )
+        print(f"Warning: SQLite database file NOT found at expected location: {os.path.abspath(db_file_path_abs)}")
+        print("Ensure the DATABASE_URL in .env points to the correct relative or absolute path.")
         print(f"Current working directory: {os.getcwd()}")
         print(f"Project root (calculated): {PROJECT_ROOT}")
 
@@ -94,9 +87,7 @@ def main():
     # For Alembic-managed databases, rely on `alembic upgrade head` (e.g., via `scripts/upgrade_db.py`).
     print("Script `create_db.py` executed. If you intend to use Alembic,")
     print("ensure you run `python scripts/upgrade_db.py` or `alembic upgrade head` ")
-    print(
-        "to manage your database schema. This script's `init_db()` call is primarily for non-Alembic setups,"
-    )
+    print("to manage your database schema. This script's `init_db()` call is primarily for non-Alembic setups,")
     print("or for an initial table setup before Alembic takes over.")
     # Dummy try-except to maintain structure if uncommenting above lines.
     try:
@@ -106,9 +97,7 @@ def main():
         print("Please ensure your .env file is correctly set up with DATABASE_URL.")
     except ImportError as ie:
         print(f"Import error: {ie}")
-        print(
-            "Ensure all dependencies are installed and the project structure is correct."
-        )
+        print("Ensure all dependencies are installed and the project structure is correct.")
         print(f"PROJECT_ROOT is: {PROJECT_ROOT}")
         print(f"sys.path includes: {sys.path}")
     except Exception as e:

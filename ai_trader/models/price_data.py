@@ -17,9 +17,7 @@ class PriceData(Base):
     high = Column(Numeric(19, 8), nullable=False)
     low = Column(Numeric(19, 8), nullable=False)
     close = Column(Numeric(19, 8), nullable=False)
-    volume = Column(
-        Numeric(19, 8), nullable=True
-    )  # Volume can sometimes be zero or not applicable
+    volume = Column(Numeric(19, 8), nullable=True)  # Volume can sometimes be zero or not applicable
     source = Column(
         String, nullable=True, index=True
     )  # e.g., 'binance', 'yahoo', can be nullable if source is not always known

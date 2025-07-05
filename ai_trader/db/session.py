@@ -6,15 +6,14 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker # noqa E402 -> Moved up
-from contextlib import asynccontextmanager # noqa E402 -> Moved up
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker  # noqa E402 -> Moved up
+from contextlib import asynccontextmanager  # noqa E402 -> Moved up
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL is None:
     raise EnvironmentError(
-        "DATABASE_URL not set in environment variables. "
-        "Please create a .env file with this variable."
+        "DATABASE_URL not set in environment variables. " "Please create a .env file with this variable."
     )
 
 engine_args = {}
@@ -33,9 +32,7 @@ elif DATABASE_URL.startswith("postgresql"):
 
 engine = create_engine(DATABASE_URL, **engine_args)  # Synchronous engine
 
-SessionLocal = sessionmaker(
-    autocommit=False, autoflush=False, bind=engine
-)  # Synchronous sessionmaker
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)  # Synchronous sessionmaker
 
 
 # --- Asynchronous Setup ---
@@ -53,9 +50,7 @@ ASYNC_DATABASE_URL = None
 if DATABASE_URL.startswith("sqlite"):
     ASYNC_DATABASE_URL = DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
 elif DATABASE_URL.startswith("postgresql"):
-    ASYNC_DATABASE_URL = DATABASE_URL.replace(
-        "postgresql://", "postgresql+asyncpg://", 1
-    )
+    ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 else:
     # Potentially raise an error or log a warning if the DB type is not supported for async
     print(f"Warning: Async database URL could not be determined for: {DATABASE_URL}")
@@ -85,9 +80,7 @@ else:
 def get_async_engine():
     """Returns the globally configured async engine."""
     if not async_engine:
-        raise RuntimeError(
-            f"Async engine not initialized. ASYNC_DATABASE_URL: {ASYNC_DATABASE_URL}"
-        )
+        raise RuntimeError(f"Async engine not initialized. ASYNC_DATABASE_URL: {ASYNC_DATABASE_URL}")
     return async_engine
 
 
@@ -95,9 +88,7 @@ def get_async_engine():
 async def get_db_session_context() -> AsyncSession:
     """Provides an async database session via an async context manager."""
     if not AsyncSessionLocal:
-        raise RuntimeError(
-            "AsyncSessionLocal not initialized. Check ASYNC_DATABASE_URL configuration."
-        )
+        raise RuntimeError("AsyncSessionLocal not initialized. Check ASYNC_DATABASE_URL configuration.")
 
     session: AsyncSession = AsyncSessionLocal()
     try:

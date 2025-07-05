@@ -73,36 +73,24 @@ class Order(Base):
         index=True,
     )
 
-    order_type = Column(
-        DBEnum(OrderType), nullable=False, default=OrderType.MARKET, index=True
-    )
+    order_type = Column(DBEnum(OrderType), nullable=False, default=OrderType.MARKET, index=True)
     order_side = Column(DBEnum(OrderSide), nullable=False, index=True)
-    status = Column(
-        DBEnum(OrderStatus), nullable=False, default=OrderStatus.PENDING, index=True
-    )
+    status = Column(DBEnum(OrderStatus), nullable=False, default=OrderStatus.PENDING, index=True)
 
     quantity_requested = Column(Numeric(19, 8), nullable=False)  # Requested quantity
-    quantity_filled = Column(
-        Numeric(19, 8), default=0.0
-    )  # Total filled quantity for this order
+    quantity_filled = Column(Numeric(19, 8), default=0.0)  # Total filled quantity for this order
 
-    limit_price = Column(
-        Numeric(19, 8), nullable=True
-    )  # For LIMIT or STOP_LIMIT orders
+    limit_price = Column(Numeric(19, 8), nullable=True)  # For LIMIT or STOP_LIMIT orders
     stop_price = Column(Numeric(19, 8), nullable=True)  # For STOP or STOP_LIMIT orders
 
     # average_fill_price can be calculated from related Trade entries or stored here if exchange provides it directly for the order
     average_fill_price = Column(Numeric(19, 8), nullable=True)
-    commission_paid = Column(
-        Numeric(19, 8), nullable=True, default=0.0
-    )  # Total commission for this order
+    commission_paid = Column(Numeric(19, 8), nullable=True, default=0.0)  # Total commission for this order
 
     exchange_order_id = Column(
         String, nullable=True, index=True, unique=False
     )  # Exchange ID might not be unique if same ID used on different exchanges or test environments
-    client_order_id = Column(
-        String, nullable=True, index=True, unique=False
-    )  # Custom ID from client system
+    client_order_id = Column(String, nullable=True, index=True, unique=False)  # Custom ID from client system
 
     is_simulated = Column(Boolean, default=True, nullable=False, index=True)
 
@@ -122,25 +110,19 @@ class Order(Base):
     user = relationship("User", back_populates="orders")
     asset = relationship("Asset", back_populates="orders")
     strategy = relationship("Strategy", back_populates="orders")
-    signal = relationship(
-        "Signal"
-    )  # An order is related to one signal. Signal doesn't list orders.
+    signal = relationship("Signal")  # An order is related to one signal. Signal doesn't list orders.
 
     # One order can have multiple trades (fills)
     trades = relationship("Trade", back_populates="order", cascade="all, delete-orphan")
 
     __table_args__ = (
-        Index(
-            "ix_order_user_status", "user_id", "status"
-        ),  # Common query: user's open/filled orders
-        Index(
-            "ix_order_asset_status", "asset_id", "status"
-        ),  # Common query: asset's open orders
+        Index("ix_order_user_status", "user_id", "status"),  # Common query: user's open/filled orders
+        Index("ix_order_asset_status", "asset_id", "status"),  # Common query: asset's open orders
         Index("ix_order_exchange_id", "exchange_order_id"),  # Already indexed on column
     )
 
     def __repr__(self):
-        return (
+        return (  # noqa: E501
             f"<Order("
             f"id={self.id}, "
             f"user_id={self.user_id}, "

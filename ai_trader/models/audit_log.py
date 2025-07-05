@@ -31,9 +31,7 @@ class AuditLog(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     # Who performed the action. Nullable if system action or user not available.
-    user_id = Column(
-        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
-    )
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     action = Column(DBEnum(AuditAction), nullable=False, index=True)
 
@@ -48,9 +46,7 @@ class AuditLog(Base):
     # For DELETEs, this could store {field: old_value}
     changed_fields = Column(JSON, nullable=True)
 
-    comment = Column(
-        Text, nullable=True
-    )  # Optional comment, e.g., reason for manual change
+    comment = Column(Text, nullable=True)  # Optional comment, e.g., reason for manual change
 
     ip_address = Column(String, nullable=True)  # IP address of the request originator
     user_agent = Column(String, nullable=True)  # User agent of the request originator

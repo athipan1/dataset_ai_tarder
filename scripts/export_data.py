@@ -43,9 +43,7 @@ def alchemy_encoder(obj):
     # This relies on Base being imported in the main execution scope of this script for the isinstance check to work
     # or more generically checking for __table__ attribute.
     if (
-        hasattr(obj, "__table__")
-        and hasattr(obj, "__class__")
-        and hasattr(obj.__class__, "metadata")
+        hasattr(obj, "__table__") and hasattr(obj, "__class__") and hasattr(obj.__class__, "metadata")
     ):  # More specific check for SA model
 
         data = {}
@@ -66,9 +64,7 @@ def alchemy_encoder(obj):
 
 async def export_table_to_csv(db_session, model_cls, filename_prefix):
     """Exports all data from a given SQLAlchemy model to a CSV file."""
-    filepath = os.path.join(
-        OUTPUT_DIR, f"{filename_prefix}_{date.today().isoformat()}.csv"
-    )
+    filepath = os.path.join(OUTPUT_DIR, f"{filename_prefix}_{date.today().isoformat()}.csv")
     print(f"Exporting {model_cls.__tablename__} to {filepath}...")
 
     stmt = select(model_cls)
@@ -94,9 +90,7 @@ async def export_table_to_csv(db_session, model_cls, filename_prefix):
 
 async def export_table_to_json(db_session, model_cls, filename_prefix):
     """Exports all data from a given SQLAlchemy model to a JSON file."""
-    filepath = os.path.join(
-        OUTPUT_DIR, f"{filename_prefix}_{date.today().isoformat()}.json"
-    )
+    filepath = os.path.join(OUTPUT_DIR, f"{filename_prefix}_{date.today().isoformat()}.json")
     print(f"Exporting {model_cls.__tablename__} to {filepath}...")
 
     stmt = select(model_cls)

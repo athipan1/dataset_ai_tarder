@@ -20,9 +20,7 @@ class Strategy(Base):
     )  # From original root models.py. For PG, use sqlalchemy.dialects.postgresql.JSONB
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
 
     user = relationship("User", back_populates="strategies")
@@ -34,9 +32,7 @@ class Strategy(Base):
         Index(
             "ix_strategy_user_id_name", "user_id", "name", unique=True
         ),  # A user shouldn't have two strategies with the same name
-        Index(
-            "ix_strategy_name", "name"
-        ),  # Retain if searching by name across users is common
+        Index("ix_strategy_name", "name"),  # Retain if searching by name across users is common
         # user_id is already indexed by ForeignKey constraint implicitly for many DBs, but explicit index is fine.
     )
 

@@ -20,9 +20,7 @@ class DailyProfit(Base):
     profit_date = Column(Date, nullable=False)
 
     # Link to user, strategy (optional, could be system-wide or per user/strategy)
-    user_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
-    )
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     strategy_id = Column(
         Integer,
         ForeignKey("strategies.id", ondelete="SET NULL"),
@@ -33,9 +31,7 @@ class DailyProfit(Base):
 
     total_profit = Column(Numeric(19, 8), nullable=False, default=0.0)
     total_trades = Column(Integer, nullable=False, default=0)
-    total_volume = Column(
-        Numeric(19, 8), nullable=True
-    )  # e.g., total value of assets traded
+    total_volume = Column(Numeric(19, 8), nullable=True)  # e.g., total value of assets traded
 
     # Relationships
     user = relationship("User")
@@ -54,7 +50,7 @@ class DailyProfit(Base):
     )
 
     def __repr__(self):
-        return (
+        return (  # noqa: E501
             f"<DailyProfit("
             f"date='{self.profit_date}', "
             f"user_id={self.user_id}, "

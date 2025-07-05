@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 # from sqlalchemy.dialects.sqlite import ( # Removed DATE F401
 #     DATE,
 # )  # For casting DateTime to Date in SQLite group by
@@ -26,9 +27,7 @@ from ai_trader.models import (  # noqa: E402
 )
 
 
-async def calculate_and_store_daily_profits(
-    db: AsyncSession, specific_date: date = None
-):
+async def calculate_and_store_daily_profits(db: AsyncSession, specific_date: date = None):
     """
     Calculates profit from trades for a specific day (or yesterday if not specified)
     and stores it in the DailyProfit table.
@@ -49,9 +48,7 @@ async def calculate_and_store_daily_profits(
     print(f"Calculating daily profits for: {specific_date}")
 
     # Delete existing entries for this date to avoid duplicates if re-run
-    await db.execute(
-        delete(DailyProfit).where(DailyProfit.profit_date == specific_date)
-    )
+    await db.execute(delete(DailyProfit).where(DailyProfit.profit_date == specific_date))
 
     # Group by user_id, strategy_id (nullable), and the date part of trade.executed_at
     # Note: Grouping by executed_at requires casting to date for SQLite.
@@ -72,10 +69,7 @@ async def calculate_and_store_daily_profits(
             func.sum(Trade.price * Trade.quantity).label("total_sell_value"),
             func.count(Trade.id).label("sell_trade_count"),
         )
-        .where(
-            func.strftime("%Y-%m-%d", Trade.executed_at)
-            == specific_date.strftime("%Y-%m-%d")
-        )
+        .where(func.strftime("%Y-%m-%d", Trade.executed_at) == specific_date.strftime("%Y-%m-%d"))
         .where(Trade.trade_type == TradeType.SELL)
         .group_by(Trade.user_id)  # Add Trade.strategy_id if grouping by strategy
     )
@@ -89,10 +83,7 @@ async def calculate_and_store_daily_profits(
             func.sum(Trade.price * Trade.quantity).label("total_buy_value"),
             func.count(Trade.id).label("buy_trade_count"),
         )
-        .where(
-            func.strftime("%Y-%m-%d", Trade.executed_at)
-            == specific_date.strftime("%Y-%m-%d")
-        )
+        .where(func.strftime("%Y-%m-%d", Trade.executed_at) == specific_date.strftime("%Y-%m-%d"))
         .where(Trade.trade_type == TradeType.BUY)
         .group_by(Trade.user_id)  # Add Trade.strategy_id if grouping by strategy
     )
@@ -123,9 +114,7 @@ async def calculate_and_store_daily_profits(
         # Subtract buy value for profit calculation
         daily_profits_data[key]["profit"] -= Decimal(row.total_buy_value or 0)
         daily_profits_data[key]["trades"] += row.buy_trade_count or 0
-        daily_profits_data[key]["volume"] += Decimal(
-            row.total_buy_value or 0
-        )  # Volume includes both
+        daily_profits_data[key]["volume"] += Decimal(row.total_buy_value or 0)  # Volume includes both
 
     # Store results
     for key, data in daily_profits_data.items():
@@ -149,9 +138,7 @@ async def calculate_and_store_daily_profits(
     print(f"Daily profits calculation complete for {specific_date}.")
 
 
-async def calculate_and_store_monthly_summaries(
-    db: AsyncSession, year: int = None, month: int = None
-):
+async def calculate_and_store_monthly_summaries(db: AsyncSession, year: int = None, month: int = None):
     """
     Calculates summaries from DailyProfit table for a specific month (or previous month if not specified)
     and stores it in the MonthlySummary table.
@@ -167,9 +154,7 @@ async def calculate_and_store_monthly_summaries(
     print(f"Calculating monthly summary for: {year}-{month:02d}")
 
     # Delete existing entries for this month to avoid duplicates
-    await db.execute(
-        delete(MonthlySummary).where(MonthlySummary.month_year == month_start_date)
-    )
+    await db.execute(delete(MonthlySummary).where(MonthlySummary.month_year == month_start_date))
 
     # Aggregate from DailyProfit table
     stmt = (
@@ -180,10 +165,7 @@ async def calculate_and_store_monthly_summaries(
             func.sum(DailyProfit.total_trades).label("monthly_trades"),
             func.sum(DailyProfit.total_volume).label("monthly_volume"),
         )
-        .where(
-            func.strftime("%Y-%m", DailyProfit.profit_date)
-            == month_start_date.strftime("%Y-%m")
-        )
+        .where(func.strftime("%Y-%m", DailyProfit.profit_date) == month_start_date.strftime("%Y-%m"))
         .group_by(DailyProfit.user_id)  # Add DailyProfit.strategy_id if used
     )
 
@@ -224,9 +206,7 @@ async def main():
         await calculate_and_store_daily_profits(db, specific_date=yesterday)
 
         # For monthly, calculate for the month of 'yesterday'
-        await calculate_and_store_monthly_summaries(
-            db, year=yesterday.year, month=yesterday.month
-        )
+        await calculate_and_store_monthly_summaries(db, year=yesterday.year, month=yesterday.month)
 
 
 if __name__ == "__main__":

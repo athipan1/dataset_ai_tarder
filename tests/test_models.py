@@ -2,6 +2,7 @@
 # import pytest # noqa F401 (flake8 ignore, remove when tests are added)
 # from app import models # Assuming your models are accessible via an 'app' package or similar
 
+
 def test_example_placeholder():
     """
     A placeholder test.
@@ -9,6 +10,7 @@ def test_example_placeholder():
     For example, test model creation, relationships, constraints, etc.
     """
     assert True
+
 
 # Example of a simple import test (adjust path if necessary)
 # def test_import_models():

@@ -29,25 +29,17 @@ class Signal(Base):
     __tablename__ = "signals"
 
     id = Column(Integer, primary_key=True, index=True)
-    asset_id = Column(
-        Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False
-    )
-    strategy_id = Column(
-        Integer, ForeignKey("strategies.id", ondelete="CASCADE"), nullable=False
-    )
+    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False)
+    strategy_id = Column(Integer, ForeignKey("strategies.id", ondelete="CASCADE"), nullable=False)
 
-    timestamp = Column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
-    )
+    timestamp = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
     signal_type = Column(DBEnum(SignalType), nullable=False, index=True)
 
     confidence_score = Column(Numeric(5, 4), nullable=True)  # e.g., 0.0000 to 1.0000
     price_at_signal = Column(Numeric(19, 8), nullable=True)
     # Additional fields from original root models.py that might be useful
     # risk_score = Column(Numeric(5, 4), nullable=True) # This was in the original plan for this file
-    details = Column(
-        Text, nullable=True
-    )  # For any extra information, like indicators values
+    details = Column(Text, nullable=True)  # For any extra information, like indicators values
     deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
 
     asset = relationship("Asset", back_populates="signals")
@@ -65,9 +57,7 @@ class Signal(Base):
             "timestamp",
             unique=False,
         ),  # Signals might not be unique for this combo always
-        Index(
-            "ix_signal_strategy_timestamp", "strategy_id", "timestamp"
-        ),  # Query signals by strategy over time
+        Index("ix_signal_strategy_timestamp", "strategy_id", "timestamp"),  # Query signals by strategy over time
         # signal_type is indexed
         # timestamp is indexed
     )

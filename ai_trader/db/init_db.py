@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 
 from ai_trader.db.base import Base
 from ai_trader.db.session import engine, SessionLocal
+
 # Import all models here so that Base knows about them.
 # These are needed for Base.metadata.create_all() to find the tables.
 from ai_trader.models import User, Trade, Strategy, TradeType  # noqa: F401
@@ -26,6 +27,7 @@ def init_db(db_engine=engine):
 def get_db_session() -> Session:
     """Helper to get a new database session."""
     return SessionLocal()
+
 
 # Example of how to add some initial data (optional)
 # def create_initial_data(db: Session):

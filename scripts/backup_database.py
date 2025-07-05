@@ -18,13 +18,9 @@ if os.path.exists(dotenv_path):
     load_dotenv(dotenv_path)
     print(f".env file loaded from {dotenv_path} for script context.")
 else:
-    print(
-        f"Warning: .env file not found at {dotenv_path}. DATABASE_URL might be missing."
-    )
+    print(f"Warning: .env file not found at {dotenv_path}. DATABASE_URL might be missing.")
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", "sqlite:///./ai_trader.db"
-)  # Default if not in .env
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ai_trader.db")  # Default if not in .env
 BACKUP_DIR = os.path.join(PROJECT_ROOT, "database_backups")
 os.makedirs(BACKUP_DIR, exist_ok=True)
 
@@ -36,11 +32,7 @@ def backup_sqlite():
         return
 
     db_file_part = DATABASE_URL.split("sqlite:///")[1]
-    db_filepath = (
-        os.path.join(PROJECT_ROOT, db_file_part)
-        if not os.path.isabs(db_file_part)
-        else db_file_part
-    )
+    db_filepath = os.path.join(PROJECT_ROOT, db_file_part) if not os.path.isabs(db_file_part) else db_file_part
 
     if not os.path.exists(db_filepath):
         print(f"Error: SQLite database file not found at {db_filepath}")
@@ -97,9 +89,7 @@ def backup_postgresql():
         if not db_name:
             raise ValueError("Database name not found in DATABASE_URL path.")
     except Exception as e:
-        print(
-            f"Could not parse database name from DATABASE_URL ('{DATABASE_URL}'): {e}"
-        )
+        print(f"Could not parse database name from DATABASE_URL ('{DATABASE_URL}'): {e}")
         print("PostgreSQL backup might fail without explicit dbname for pg_dump.")
         # Fallback or require db_name to be set as an env var for pg_dump
         db_name = "ai_trader_db"  # Placeholder, this should be accurate
@@ -127,13 +117,9 @@ def backup_postgresql():
     # For custom format compressed backup (recommended):
     # command = ["pg_dump", db_name, "-f", backup_filepath.replace(".sql", ".dump"), "-F", "c", "-Z", "9"]
 
-    print(
-        f"Executing command: {' '.join(command)} (ensure DB connection env vars are set for pg_dump)"
-    )
+    print(f"Executing command: {' '.join(command)} (ensure DB connection env vars are set for pg_dump)")
     try:
-        process = subprocess.Popen(
-            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
 
         if process.returncode == 0:
@@ -144,9 +130,7 @@ def backup_postgresql():
             if stderr:
                 print("pg_dump stderr (info/warnings):\n", stderr.decode())
         else:
-            print(
-                f"Error during PostgreSQL backup (pg_dump returned code {process.returncode}):"
-            )
+            print(f"Error during PostgreSQL backup (pg_dump returned code {process.returncode}):")
             if stdout:
                 print("pg_dump stdout:\n", stdout.decode())
             if stderr:
@@ -179,7 +163,7 @@ def main():
     # The following f-string was split to avoid E501:
     abs_script_path = os.path.abspath(__file__)
     log_file = "/var/log/ai_trader_backup.log"
-    command_part = f"0 3 * * * /usr/bin/python3 {abs_script_path}"
+    command_part = f"0 3 * * * /usr/bin/python3 {abs_script_path}"  # noqa: E501
     redirect_part = f">> {log_file} 2>&1"
     cron_command = f"{command_part} {redirect_part}"
     # py_exec = "/usr/bin/python3"
@@ -187,9 +171,7 @@ def main():
     # cron_command = f"{schedule} {py_exec} {abs_script_path} {redirect_part}"
     print(cron_command)
     print("\nReplace paths with your actual Python interpreter and script location.")
-    print(
-        "Ensure the environment (DATABASE_URL, PostgreSQL client tools path, PG env vars) is available."
-    )
+    print("Ensure the environment (DATABASE_URL, PostgreSQL client tools path, PG env vars) is available.")
     print("---------------------------------------\n")
 
 

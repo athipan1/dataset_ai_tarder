@@ -14,16 +14,12 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     # Add updated_at for consistency if other tables have it, good practice
-    updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
 
     strategies = relationship("Strategy", back_populates="user")
     orders = relationship("Order", back_populates="user")
-    trades = relationship(
-        "Trade", back_populates="user"
-    )  # Assuming Trade model has a user relationship
+    trades = relationship("Trade", back_populates="user")  # Assuming Trade model has a user relationship
 
     __table_args__ = (
         Index("ix_user_username", "username"),

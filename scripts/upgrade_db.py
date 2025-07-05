@@ -18,8 +18,7 @@ if os.path.exists(dotenv_path):
     print(f".env file loaded from {dotenv_path} for Alembic context.")
 else:
     print(
-        f"Warning: .env file not found at {dotenv_path}. "
-        "Alembic might not find DATABASE_URL if not set globally."
+        f"Warning: .env file not found at {dotenv_path}. " "Alembic might not find DATABASE_URL if not set globally."
     )
 
 
@@ -33,9 +32,7 @@ def run_alembic_upgrade():
         alembic_ini_path = os.path.join(PROJECT_ROOT, "alembic.ini")
         if not os.path.exists(alembic_ini_path):
             print(f"Error: alembic.ini not found at {alembic_ini_path}")
-            print(
-                "Please ensure Alembic is initialized and alembic.ini is in the project root."
-            )
+            print("Please ensure Alembic is initialized and alembic.ini is in the project root.")
             return
 
         # Using '-c' to specify the config path is good practice
@@ -43,9 +40,7 @@ def run_alembic_upgrade():
         print(f"Executing command: {' '.join(command)}")
 
         # Run the command from the project root
-        result = subprocess.run(
-            command, capture_output=True, text=True, check=False, cwd=PROJECT_ROOT
-        )
+        result = subprocess.run(command, capture_output=True, text=True, check=False, cwd=PROJECT_ROOT)
 
         if result.returncode == 0:
             print("Alembic upgrade successful.")
@@ -65,18 +60,12 @@ def run_alembic_upgrade():
             output_combined = result.stdout.lower() + result.stderr.lower()
             if "already exists" in output_combined:
                 db_url = os.getenv("DATABASE_URL", "")
-                print(
-                    "\n--------------------------------------------------------------------"
-                )
-                print(
-                    "ERROR: It appears one or more tables Alembic tried to create already exist."
-                )
+                print("\n--------------------------------------------------------------------")
+                print("ERROR: It appears one or more tables Alembic tried to create already exist.")
                 if db_url.startswith("sqlite:///"):
                     db_file_part = db_url.split(":///")[1]
                     abs_db_file = (
-                        os.path.join(PROJECT_ROOT, db_file_part)
-                        if not os.path.isabs(db_file_part)
-                        else db_file_part
+                        os.path.join(PROJECT_ROOT, db_file_part) if not os.path.isabs(db_file_part) else db_file_part
                     )
                     db_name = os.path.basename(abs_db_file)
                     print(
@@ -90,10 +79,7 @@ def run_alembic_upgrade():
                     script_name = os.path.basename(__file__)
                     print(f"  3. Re-run this script: python {script_name}")
                 else:
-                    print(
-                        "This can happen if the database was previously initialized "
-                        "by other means."
-                    )
+                    print("This can happen if the database was previously initialized " "by other means.")
                     print(
                         "For non-SQLite databases, you might need to manually drop "
                         "tables or use `alembic stamp head` if schema matches "
@@ -101,36 +87,25 @@ def run_alembic_upgrade():
                     )
                 print("-----------------------------\n")
             elif "can't locate revision identified by" in output_combined:
-                print(
-                    "\n--------------------------------------------------------------------"
-                )
+                print("\n--------------------------------------------------------------------")
                 print("ERROR: Alembic - Can't locate revision.")
                 print(
                     "This might mean the `alembic_version` table is missing/corrupt, "
                     "or contains an unknown revision ID."
                 )
-                print(
-                    "If this is a new database, ensure it's empty before "
-                    "the first `upgrade head`."
-                )
+                print("If this is a new database, ensure it's empty before " "the first `upgrade head`.")
                 print(
                     "If the schema is supposedly up-to-date but Alembic is "
                     "unaware, you might need `alembic stamp head`."
                 )
-                print(
-                    "--------------------------------------------------------------------\n"
-                )
+                print("--------------------------------------------------------------------\n")
 
     except FileNotFoundError:
         print("Error: The 'alembic' command was not found.")
         print("Please ensure Alembic is installed and in your system's PATH.")
         print("You can install it with: pip install alembic")
-    except (
-        OperationalError
-    ) as oe:  # This specific exception might be rare here due to subprocess
-        print(
-            f"A SQLAlchemy OperationalError occurred directly in the script (unexpected): {oe}"
-        )
+    except OperationalError as oe:  # This specific exception might be rare here due to subprocess
+        print(f"A SQLAlchemy OperationalError occurred directly in the script (unexpected): {oe}")
         # This part of error handling might be more relevant if we used Alembic's Python API directly
     except Exception as e:
         print(f"An unexpected error occurred: {e}")

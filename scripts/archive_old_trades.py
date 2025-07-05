@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 # from sqlalchemy.future import select  # Not strictly needed for this update-only script - Removed F401
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession
+
 # from dotenv import load_dotenv # Moved to __main__
 
 # Add project root to Python path
@@ -21,18 +22,14 @@ from ai_trader.models import Trade  # noqa: E402
 DEFAULT_RETENTION_DAYS = 365
 
 
-async def soft_delete_old_trades(
-    db_session: AsyncSession, retention_days: int = DEFAULT_RETENTION_DAYS
-):
+async def soft_delete_old_trades(db_session: AsyncSession, retention_days: int = DEFAULT_RETENTION_DAYS):
     """
     Soft-deletes trades older than the specified retention period.
     It sets the 'deleted_at' field to the current time for qualifying records.
     """
     cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
 
-    print(
-        f"Soft-deleting trades executed before: {cutoff_date.isoformat()} (older than {retention_days} days)..."
-    )
+    print(f"Soft-deleting trades executed before: {cutoff_date.isoformat()} (older than {retention_days} days)...")
 
     stmt = (
         update(Trade)
@@ -44,9 +41,7 @@ async def soft_delete_old_trades(
     result = await db_session.execute(stmt)
     await db_session.commit()
 
-    print(
-        f"Soft-delete process complete. {result.rowcount} trades were marked as deleted."
-    )
+    print(f"Soft-delete process complete. {result.rowcount} trades were marked as deleted.")
     return result.rowcount
 
 
@@ -55,9 +50,7 @@ async def main():
 
     retention_param = os.getenv("TRADE_RETENTION_DAYS")
     try:
-        retention_days = (
-            int(retention_param) if retention_param else DEFAULT_RETENTION_DAYS
-        )
+        retention_days = int(retention_param) if retention_param else DEFAULT_RETENTION_DAYS
     except ValueError:
         print(
             f"Warning: Invalid TRADE_RETENTION_DAYS value '{retention_param}'. Using default: {DEFAULT_RETENTION_DAYS} days."
@@ -75,7 +68,7 @@ async def main():
     # The following f-string was split to avoid E501:
     abs_script_path = os.path.abspath(__file__)
     log_file = "/var/log/ai_trader_archive.log"
-    command_part = f"0 2 * * * /usr/bin/python3 {abs_script_path}"
+    command_part = f"0 2 * * * /usr/bin/python3 {abs_script_path}"  # noqa: E501
     redirect_part = f">> {log_file} 2>&1"
     cron_command = f"{command_part} {redirect_part}"
     # Or if even command_part is too long:
@@ -84,12 +77,8 @@ async def main():
     # cron_command = f"{schedule} {py_exec} {abs_script_path} {redirect_part}"
     print(cron_command)
     print("\nReplace paths with your actual Python interpreter and script location.")
-    print(
-        "Ensure the environment (like DATABASE_URL, TRADE_RETENTION_DAYS) is available to the cron job."
-    )
-    print(
-        "For Windows Task Scheduler, you would create a new task to run this script daily."
-    )
+    print("Ensure the environment (like DATABASE_URL, TRADE_RETENTION_DAYS) is available to the cron job.")
+    print("For Windows Task Scheduler, you would create a new task to run this script daily.")
     print("---------------------------------------\n")
 
 
@@ -102,8 +91,6 @@ if __name__ == "__main__":
         load_dotenv(dotenv_path)
         print(f".env file loaded from {dotenv_path} for script context.")
     else:
-        print(
-            f"Warning: .env file not found at {dotenv_path}. Environment variables might be missing."
-        )
+        print(f"Warning: .env file not found at {dotenv_path}. Environment variables might be missing.")
 
     asyncio.run(main())

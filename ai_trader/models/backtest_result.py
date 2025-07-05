@@ -39,22 +39,16 @@ class BacktestResult(Base):
     final_capital = Column(Numeric(19, 8), nullable=False)
 
     total_pnl = Column(Numeric(19, 8), nullable=False)  # Profit and Loss
-    pnl_percentage = Column(
-        Numeric(10, 4), nullable=False
-    )  # (total_pnl / initial_capital) * 100
+    pnl_percentage = Column(Numeric(10, 4), nullable=False)  # (total_pnl / initial_capital) * 100
 
     total_trades = Column(Integer, nullable=False)
     winning_trades = Column(Integer, nullable=False)
     losing_trades = Column(Integer, nullable=False)
     neutral_trades = Column(Integer, default=0)  # Trades with zero profit/loss
 
-    win_rate = Column(
-        Numeric(7, 4), nullable=True
-    )  # winning_trades / (winning_trades + losing_trades)
+    win_rate = Column(Numeric(7, 4), nullable=True)  # winning_trades / (winning_trades + losing_trades)
 
-    max_drawdown_abs = Column(
-        Numeric(19, 8), nullable=True
-    )  # Absolute max drawdown value
+    max_drawdown_abs = Column(Numeric(19, 8), nullable=True)  # Absolute max drawdown value
     max_drawdown_pct = Column(Numeric(7, 4), nullable=True)  # Max drawdown percentage
 
     sharpe_ratio = Column(Numeric(10, 4), nullable=True)

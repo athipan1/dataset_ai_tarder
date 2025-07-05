@@ -21,9 +21,7 @@ class MonthlySummary(Base):
     # Using Date (first day of month) for easier querying and consistency
     month_year = Column(Date, nullable=False)
 
-    user_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
-    )
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     strategy_id = Column(
         Integer,
         ForeignKey("strategies.id", ondelete="SET NULL"),

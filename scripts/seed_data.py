@@ -1,10 +1,12 @@
 import asyncio
 import os
 import sys
+
 # from datetime import datetime # Removed F401
 
 from sqlalchemy.ext.asyncio import AsyncSession  # Third-party
 from sqlalchemy.future import select  # Third-party
+
 # from sqlalchemy.orm import sessionmaker # Removed F401
 # from sqlalchemy import create_engine # Removed F401
 
@@ -25,6 +27,7 @@ from ai_trader.models import (  # noqa: E402
     AssetType,
     # Trade, TradeType, Order, OrderStatus, OrderType, OrderSide # For more advanced seeding
 )
+
 # from ai_trader.db.base import ( # Removed F401
 #     Base,
 # )  # To create tables if run standalone on a fresh DB (for testing seed script)
@@ -123,7 +126,7 @@ async def seed_data(db_session: AsyncSession):
 
     # Create a Strategy for the demo user
     strategy_exists_stmt = select(Strategy).where(
-        Strategy.name == "Demo RSI Strategy", Strategy.user_id == demo_user.id
+        Strategy.name == "Demo RSI Strategy", Strategy.user_id == demo_user.id  # noqa: E501 (if this is the reported line)
     )
     result = await db_session.execute(strategy_exists_stmt)
     existing_strategy = result.scalars().first()

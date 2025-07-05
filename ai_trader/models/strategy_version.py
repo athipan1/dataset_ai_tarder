@@ -23,9 +23,7 @@ class StrategyVersion(Base):
         nullable=False,
         index=True,
     )
-    version_number = Column(
-        Integer, nullable=False, default=1
-    )  # Incremental version number for each strategy
+    version_number = Column(Integer, nullable=False, default=1)  # Incremental version number for each strategy
 
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
@@ -46,12 +44,8 @@ class StrategyVersion(Base):
         # Consider Index("ix_strategy_version_strategy_id_version", "strategy_id", "version_number", unique=True),
         # However, if version_number is manually managed or could have gaps, a simple index might be better.
         # For now, assume version_number is programmatically incremented upon change.
-        UniqueConstraint(
-            "strategy_id", "version_number", name="uq_strategy_id_version_number"
-        ),
-        Index(
-            "ix_strategy_version_strategy_id", "strategy_id"
-        ),  # Index for quick lookup of versions for a strategy
+        UniqueConstraint("strategy_id", "version_number", name="uq_strategy_id_version_number"),
+        Index("ix_strategy_version_strategy_id", "strategy_id"),  # Index for quick lookup of versions for a strategy
     )
 
     def __repr__(self):
