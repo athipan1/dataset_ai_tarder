@@ -9,7 +9,10 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL is None:
-    raise EnvironmentError("DATABASE_URL not set in environment variables. Please create a .env file with this variable.")
+    raise EnvironmentError(
+        "DATABASE_URL not set in environment variables. "
+        "Please create a .env file with this variable."
+    )
 
 engine_args = {}
 if DATABASE_URL.startswith("sqlite"):
@@ -28,6 +31,7 @@ elif DATABASE_URL.startswith("postgresql"):
 engine = create_engine(DATABASE_URL, **engine_args)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 def get_db():
     """

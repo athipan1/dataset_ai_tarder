@@ -17,8 +17,9 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 import sys
-sys.path.append('.')
-from models import Base  # Adjusted import
+sys.path.append('.')  # Modification of sys.path
+
+from models import Base  # noqa: E402
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,

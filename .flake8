@@ -1,24 +1,21 @@
 [flake8]
-# Ignore some warnings:
-# E203: whitespace before ':' (often conflicts with black formatter)
-# W503: line break before binary operator (PEP8 now recommends after)
-# E501: line too long (we'll set max-line-length separately)
-ignore = E203, W503
 max-line-length = 120
 exclude =
     .git,
     __pycache__,
-    docs,
+    .venv,
+    venv,
+    env,
     build,
     dist,
-    venv,
-    .venv,
-    env,
-    .env,
-    migrations, # if using alembic
-    alembic    # if using alembic
+    docs,
+    migrations,
+    alembic/versions/
+# E203: whitespace before ':' - often conflicts with black formatting for slices.
+# W503: line break before binary operator (PEP 8 recommends after) - black also prefers after.
+# Flake8 default for complexity (C901) is 10. Can be adjusted if needed:
+# max-complexity = 10
+ignore = E203, W503
 
-# You can also enable specific plugins or checks here if needed
-# e.g., extend-select = B,C,E,F,W,T4,B9
-# mccabe complexity
-max-complexity = 10
+per-file-ignores =
+    alembic/env.py: E402

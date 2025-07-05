@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, DateTime, Index
 from sqlalchemy.sql import func
+
 from ai_trader.db.base import Base
+
 
 class User(Base):
     __tablename__ = "users"

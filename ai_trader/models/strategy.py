@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, Index
 from sqlalchemy.orm import relationship
+
 from ai_trader.db.base import Base
+
 
 class Strategy(Base):
     __tablename__ = "strategies"
@@ -10,7 +12,7 @@ class Strategy(Base):
     description = Column(Text, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
-    owner = relationship("User") # Establishes a relationship to the User model
+    owner = relationship("User")  # Establishes a relationship to the User model
 
     __table_args__ = (
         Index("ix_strategy_name", "name"),

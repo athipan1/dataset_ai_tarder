@@ -1,8 +1,11 @@
 from sqlalchemy.orm import Session
+
 from ai_trader.db.base import Base
 from ai_trader.db.session import engine, SessionLocal
-# Import all models here so that Base knows about them
-from ai_trader.models import User, Trade, Strategy, TradeType # TradeType also imported if it's part of __all__
+# Import all models here so that Base knows about them.
+# These are needed for Base.metadata.create_all() to find the tables.
+from ai_trader.models import User, Trade, Strategy, TradeType  # noqa: F401
+
 
 def init_db(db_engine=engine):
     """
@@ -18,6 +21,7 @@ def init_db(db_engine=engine):
     # Ensure all models are imported above so Base.metadata contains them.
     Base.metadata.create_all(bind=db_engine)
     print("Database tables created (if they didn't exist).")
+
 
 def get_db_session() -> Session:
     """Helper to get a new database session."""
