@@ -16,9 +16,16 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
+import os
 import sys
-sys.path.append('.')
-from models import Base  # Adjusted import
+# Ensure the project root (containing the 'ai_trader' package) is in the path.
+# alembic.ini's prepend_sys_path = . also helps if alembic is run from project root.
+# The path from env.py (in alembic/env.py) to project root is two levels up.
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from ai_trader.db.base import Base  # noqa: E402
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
