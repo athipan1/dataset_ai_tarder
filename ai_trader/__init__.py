@@ -47,10 +47,13 @@ else:
     pass
 
 # Ensure event listeners are registered when this package is imported at a high level.
-# This is an alternative to registering them in db.session.py.
-# However, registering in db.session.py is fine as it's tied to DB setup.
-# If registered here, ensure this __init__ is imported early.
-# For now, keeping registration in db.session.py as per current implementation.
-# if not event_listeners.ARE_LISTENERS_REGISTERED: # Hypothetical flag
-# event_listeners.register_audit_listeners()
-# print("AI Trader package initialized.")
+# This is now the primary place for registration to avoid circular imports.
+# The event_listeners module is imported above as `from . import event_listeners`.
+
+# Ensure all necessary modules (like db.session for engine setup, models) are initialized
+# before registering listeners, if there are such implicit dependencies for the listeners
+# to function correctly (e.g. models being fully defined).
+# Given the typical import order, this should be fine here.
+event_listeners.register_audit_listeners()
+
+print("AI Trader package initialized. Audit listeners registered.")

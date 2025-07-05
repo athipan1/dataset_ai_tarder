@@ -6,7 +6,10 @@ from sqlalchemy.orm.exc import UnmappedColumnError
 
 from ai_trader.models import AuditLog, User, Asset, Strategy, Trade # Add other models as needed
 from ai_trader.auth_context import get_current_user_id
-from ai_trader.db.session import SessionLocal # To create a session if one isn't available
+# Removed SessionLocal import to break circular dependency.
+# Session acquisition should rely on Session.object_session(target)
+# or Session(bind=connection_for_event) as implemented in get_auditing_session
+# (or the existing _get_session if that's the current version in file).
 
 def _get_session(target_instance, connection=None):
     """Gets or creates a session for logging."""
