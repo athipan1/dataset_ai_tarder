@@ -211,5 +211,5 @@ if __name__ == "__main__":
     # to manage schema changes systematically.
     # e.g., alembic revision -m "create_initial_tables"
     #       alembic upgrade head
-    Base.metadata.create_all(bind=engine)
-    print("Database tables created successfully.")
+    # Base.metadata.create_all(bind=engine) # Replaced by Alembic
+    print("To create database tables, run: alembic upgrade head")
