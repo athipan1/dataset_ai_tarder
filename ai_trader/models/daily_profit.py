@@ -50,8 +50,9 @@ class DailyProfit(Base):
     )
 
     def __repr__(self):
+        cls_name = self.__class__.__name__
         return (
-            f"<DailyProfit("
+            f"<{cls_name}("
             f"date='{self.profit_date}', "
             f"user_id={self.user_id}, "
             f"strategy_id={self.strategy_id}, "
