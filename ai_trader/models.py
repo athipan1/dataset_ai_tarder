@@ -268,6 +268,51 @@ class Trade(Base):
         )
 
 
+class ArchivedTrade(Base):
+    __tablename__ = "archived_trades"
+
+    id = Column(Integer, primary_key=True, index=True) # Keep original ID for reference
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id", ondelete="SET NULL"), nullable=True, index=True) # Original order_id
+
+    symbol = Column(String, nullable=False, index=True)
+    quantity = Column(Numeric(19, 8), nullable=False)
+    price = Column(Numeric(19, 8), nullable=False)
+    timestamp = Column(DateTime(timezone=True)) # Original timestamp of the trade
+    trade_type = Column(DBEnum(TradeType), nullable=False)
+    commission = Column(Numeric(19, 8), nullable=True)
+    commission_asset = Column(String, nullable=True)
+
+    # Fields from the example not directly in the current Trade model, but might be useful for archived data
+    # These would require the original Trade model to have them or be derived during archiving.
+    # For now, I will stick to the columns present in the existing Trade model and add `archived_at`.
+    # If PnL, entry/exit prices, opened/closed_at were part of the original Trade, they'd be here.
+    # entry_price = Column(Float)
+    # exit_price = Column(Float)
+    # pnl = Column(Float)
+    # opened_at = Column(DateTime)
+    # closed_at = Column(DateTime)
+
+    archived_at = Column(DateTime(timezone=True), default=func.now())
+
+    # Relationships are generally not needed for archive tables as they are for historical record keeping
+    # and not active operational data. Foreign keys are kept for data integrity / reference.
+    # user = relationship("User")
+    # executed_order = relationship("Order")
+
+    __table_args__ = (
+        Index("ix_archived_trade_user_symbol_timestamp", "user_id", "symbol", "timestamp"),
+        Index("ix_archived_trade_archived_at", "archived_at"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<ArchivedTrade(id={self.id}, symbol='{self.symbol}', "
+            f"type='{self.trade_type.value}', quantity={self.quantity}, "
+            f"price={self.price}, archived_at='{self.archived_at}')>"
+        )
+
+
 class UserBehaviorLog(Base):
     __tablename__ = "user_behavior_logs"
 
@@ -355,6 +400,7 @@ __all__ = [
     "Order",
     "BacktestResult",
     "Trade",
+    "ArchivedTrade",
     "UserBehaviorLog",
     "TradeAnalytics",
     "MarketEvent",
