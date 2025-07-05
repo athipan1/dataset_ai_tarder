@@ -1,0 +1,24 @@
+[flake8]
+# Ignore some warnings:
+# E203: whitespace before ':' (often conflicts with black formatter)
+# W503: line break before binary operator (PEP8 now recommends after)
+# E501: line too long (we'll set max-line-length separately)
+ignore = E203, W503
+max-line-length = 120
+exclude =
+    .git,
+    __pycache__,
+    docs,
+    build,
+    dist,
+    venv,
+    .venv,
+    env,
+    .env,
+    migrations, # if using alembic
+    alembic    # if using alembic
+
+# You can also enable specific plugins or checks here if needed
+# e.g., extend-select = B,C,E,F,W,T4,B9
+# mccabe complexity
+max-complexity = 10
