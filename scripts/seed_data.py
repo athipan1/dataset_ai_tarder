@@ -76,9 +76,8 @@ async def seed_data(db_session: AsyncSession):
         )
         db_session.add(demo_user)
         await db_session.flush()  # To get demo_user.id for strategies
-        user_creation_message = (
-            f"Demo user created with ID: {demo_user.id}"  # noqa: E501
-        )
+        msg_part1 = "Demo user created with ID: "
+        user_creation_message = f"{msg_part1}{demo_user.id}"
         print(user_creation_message)
 
     # Create Assets

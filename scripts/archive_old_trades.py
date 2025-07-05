@@ -75,10 +75,13 @@ async def main():
     # The following f-string was split to avoid E501:
     abs_script_path = os.path.abspath(__file__)
     log_file = "/var/log/ai_trader_archive.log"
-    cron_command = (
-        f"0 2 * * * /usr/bin/python3 {abs_script_path} "  # noqa: E501
-        f">> {log_file} 2>&1"
-    )
+    command_part = f"0 2 * * * /usr/bin/python3 {abs_script_path}"
+    redirect_part = f">> {log_file} 2>&1"
+    cron_command = f"{command_part} {redirect_part}"
+    # Or if even command_part is too long:
+    # py_exec = "/usr/bin/python3"
+    # schedule = "0 2 * * *"
+    # cron_command = f"{schedule} {py_exec} {abs_script_path} {redirect_part}"
     print(cron_command)
     print("\nReplace paths with your actual Python interpreter and script location.")
     print(

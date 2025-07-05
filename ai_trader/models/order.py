@@ -141,7 +141,8 @@ class Order(Base):
 
     def __repr__(self):
         return (
-            f"<Order(id={self.id}, user_id={self.user_id}, "  # noqa: E501
+            f"<Order(id={self.id}, "
+            f"user_id={self.user_id}, "
             f"asset_id={self.asset_id}, "
             f"status='{self.status.value}')>"
         )
