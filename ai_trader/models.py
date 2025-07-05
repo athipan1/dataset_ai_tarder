@@ -1,0 +1,363 @@
+import enum
+from sqlalchemy import (
+    create_engine, Column, Integer, String, Float, DateTime, Enum as DBEnum, # Renamed Enum to DBEnum to avoid conflict
+    ForeignKey, Text, Index, JSON, Numeric, Date
+)
+from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.sql import func
+
+Base = declarative_base()
+
+# --- Enums ---
+
+class SignalType(enum.Enum):
+    BUY = "BUY"
+    SELL = "SELL"
+    HOLD = "HOLD"
+
+class OrderStatus(enum.Enum):
+    PENDING = "PENDING"
+    OPEN = "OPEN"
+    FILLED = "FILLED"
+    PARTIALLY_FILLED = "PARTIALLY_FILLED"
+    CANCELLED = "CANCELLED"
+    REJECTED = "REJECTED"
+    EXPIRED = "EXPIRED"
+
+class OrderType(enum.Enum):
+    MARKET = "MARKET"
+    LIMIT = "LIMIT"
+    STOP = "STOP"
+
+class OrderSide(enum.Enum):
+    BUY = "BUY"
+    SELL = "SELL"
+
+class TradeType(enum.Enum):
+    BUY = "BUY"
+    SELL = "SELL"
+
+
+# --- Models ---
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # Relationships from root models.py
+    strategies = relationship("Strategy", back_populates="user") # Changed from owner to user for consistency
+    orders = relationship("Order", back_populates="user")
+
+    # Relationships from ai_trader/models/user.py
+    behavior_logs = relationship("UserBehaviorLog", back_populates="user")
+    trade_analytics = relationship("TradeAnalytics", back_populates="user") # This one added
+
+    # __table_args__ from ai_trader/models/user.py (root model didn't have specific ones)
+    # Root model had implicit indices from unique=True, index=True. Explicit can be fine.
+    __table_args__ = (
+        Index("ix_user_username", "username", unique=True), # unique=True already on column
+        Index("ix_user_email", "email", unique=True),     # unique=True already on column
+    )
+
+    def __repr__(self):
+        return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
+
+
+class Asset(Base):
+    __tablename__ = "assets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=True)
+    asset_type = Column(String, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+
+    price_data = relationship("PriceData", back_populates="asset")
+    signals = relationship("Signal", back_populates="asset")
+    orders = relationship("Order", back_populates="asset")
+
+    def __repr__(self):
+        return f"<Asset(id={self.id}, symbol='{self.symbol}')>"
+
+
+class Strategy(Base):
+    __tablename__ = "strategies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    description = Column(Text, nullable=True)
+    model_version = Column(String, nullable=True)
+    parameters = Column(JSON, nullable=True)
+    api_key = Column(String, nullable=True) # TODO: Secure this
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True) # Made nullable=False as per ai_trader/models/strategy.py, and added index
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    user = relationship("User", back_populates="strategies") # Changed from owner to user for consistency
+    signals = relationship("Signal", back_populates="strategy")
+    orders = relationship("Order", back_populates="strategy")
+    backtest_results = relationship("BacktestResult", back_populates="strategy")
+    trade_analytics = relationship("TradeAnalytics", back_populates="strategy") # This one added
+
+    __table_args__ = (
+        Index("ix_strategy_name", "name"), # Already on column, but explicit is fine
+        # user_id index already on column
+    )
+
+    def __repr__(self):
+        return f"<Strategy(id={self.id}, name='{self.name}')>"
+
+
+class PriceData(Base):
+    __tablename__ = "price_data"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
+    timestamp = Column(DateTime, nullable=False, index=True)
+    open = Column(Float, nullable=False)
+    high = Column(Float, nullable=False)
+    low = Column(Float, nullable=False)
+    close = Column(Float, nullable=False)
+    volume = Column(Float, nullable=False)
+    source = Column(String, nullable=False)
+
+    asset = relationship("Asset", back_populates="price_data")
+
+    __table_args__ = (
+        Index("idx_asset_timestamp_source", "asset_id", "timestamp", "source", unique=True),
+    )
+
+    def __repr__(self):
+        return f"<PriceData(asset_id={self.asset_id}, timestamp='{self.timestamp}', close={self.close})>"
+
+
+class Signal(Base):
+    __tablename__ = "signals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False)
+    timestamp = Column(DateTime, nullable=False, index=True)
+    signal_type = Column(DBEnum(SignalType), nullable=False, index=True)
+    confidence_score = Column(Float, nullable=True)
+    risk_score = Column(Float, nullable=True)
+    price_at_signal = Column(Float, nullable=True)
+
+    asset = relationship("Asset", back_populates="signals")
+    strategy = relationship("Strategy", back_populates="signals")
+
+    __table_args__ = (
+        Index("idx_signal_asset_strategy_timestamp", "asset_id", "strategy_id", "timestamp"),
+    )
+
+    def __repr__(self):
+        return f"<Signal(id={self.id}, asset_id={self.asset_id}, strategy_id={self.strategy_id}, type='{self.signal_type.value}')>"
+
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True)
+    signal_id = Column(Integer, ForeignKey("signals.id"), nullable=True)
+
+    order_type = Column(DBEnum(OrderType), nullable=False, default=OrderType.MARKET)
+    order_side = Column(DBEnum(OrderSide), nullable=False)
+    status = Column(DBEnum(OrderStatus), nullable=False, default=OrderStatus.PENDING, index=True)
+    quantity = Column(Float, nullable=False)
+    price = Column(Float, nullable=True)
+    filled_quantity = Column(Float, default=0.0)
+    average_fill_price = Column(Float, nullable=True)
+    commission = Column(Float, nullable=True)
+    exchange_order_id = Column(String, nullable=True, index=True)
+    is_simulated = Column(Integer, default=1, nullable=False)
+
+    created_at = Column(DateTime, default=func.now(), index=True)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    user = relationship("User", back_populates="orders")
+    asset = relationship("Asset", back_populates="orders")
+    strategy = relationship("Strategy", back_populates="orders")
+
+    __table_args__ = (
+        Index("idx_order_asset_strategy_created", "asset_id", "strategy_id", "created_at"),
+    )
+
+    def __repr__(self):
+        return f"<Order(id={self.id}, asset_id={self.asset_id}, type='{self.order_type.value}', side='{self.order_side.value}', status='{self.status.value}')>"
+
+
+class BacktestResult(Base):
+    __tablename__ = "backtest_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=False)
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=False)
+    initial_capital = Column(Float, nullable=False)
+    final_capital = Column(Float, nullable=False)
+    total_profit = Column(Float, nullable=False)
+    total_trades = Column(Integer, nullable=False)
+    winning_trades = Column(Integer, nullable=False)
+    losing_trades = Column(Integer, nullable=False)
+    win_rate = Column(Float, nullable=False)
+    accuracy = Column(Float, nullable=True)
+    max_drawdown = Column(Float, nullable=False)
+    sharpe_ratio = Column(Float, nullable=True)
+    sortino_ratio = Column(Float, nullable=True)
+    parameters_used = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+
+    strategy = relationship("Strategy", back_populates="backtest_results")
+
+    __table_args__ = (
+        Index("idx_backtest_strategy_created", "strategy_id", "created_at"),
+    )
+
+    def __repr__(self):
+        return f"<BacktestResult(id={self.id}, strategy_id={self.strategy_id}, profit={self.total_profit})>"
+
+
+# --- New Models from ai_trader/models/ ---
+
+class Trade(Base):
+    __tablename__ = "trades" # This table might conflict with 'orders' if they represent similar things.
+                           # Assuming 'trades' are actual executed transactions vs 'orders' which can be pending/cancelled.
+
+    id = Column(Integer, primary_key=True, index=True)
+    # user_id from ai_trader/models/trade.py, but orders already has user_id.
+    # If a trade always comes from an order, this might be redundant or could link to order_id.
+    # For now, keeping it as per user's request to include Trade model.
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True, index=True) # Added link to Order
+
+    symbol = Column(String, nullable=False, index=True) # Asset symbol, e.g. BTCUSD. Consider ForeignKey to Asset.asset_symbol
+    quantity = Column(Numeric(19, 8), nullable=False) # Adjusted precision based on typical crypto values
+    price = Column(Numeric(19, 8), nullable=False) # Adjusted precision
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    trade_type = Column(DBEnum(TradeType), nullable=False)
+    commission = Column(Numeric(19, 8), nullable=True)
+    commission_asset = Column(String, nullable=True) # e.g., USDT or the traded asset itself
+
+    # Relationship to User (already defined in User model via 'orders', but direct might be wanted if trades can exist without an order)
+    # Not adding a direct user relationship here if orders are the primary link.
+    # user = relationship("User") # This would conflict with User.orders if not named carefully.
+    # Explicitly relating to order:
+    executed_order = relationship("Order") # Name it clearly if Order has a backref to trades.
+
+    __table_args__ = (
+        Index("ix_trade_user_id_symbol_timestamp", "user_id", "symbol", "timestamp"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<Trade(id={self.id}, symbol='{self.symbol}', "
+            f"type='{self.trade_type.value}', quantity={self.quantity}, "
+            f"price={self.price})>"
+        )
+
+
+class UserBehaviorLog(Base):
+    __tablename__ = "user_behavior_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    action_type = Column(String, nullable=False, index=True) # E.g., 'login', 'view_dashboard', 'execute_trade'
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    session_id = Column(String, index=True, nullable=True)
+    meta_data = Column(JSON, nullable=True)
+
+    user = relationship("User", back_populates="behavior_logs")
+
+    def __repr__(self):
+        return f"<UserBehaviorLog(id={self.id}, user_id={self.user_id}, action_type='{self.action_type}')>"
+
+
+class TradeAnalytics(Base):
+    __tablename__ = "trade_analytics" # This seems to be summary data.
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True, index=True)
+    total_trades = Column(Integer, nullable=False)
+    win_rate = Column(Float, nullable=False) # Percentage, e.g., 0.75 for 75%
+    total_pnl = Column(Float, nullable=False) # Profit and Loss
+    avg_risk_reward_ratio = Column(Float, nullable=True) # Renamed for clarity
+    max_drawdown = Column(Float, nullable=True) # Percentage or absolute value
+    analysis_date = Column(Date, nullable=False, default=func.current_date()) # Changed to Date, added default
+    notes = Column(Text, nullable=True)
+    # Consider adding start_date and end_date for the period of this analysis
+
+    user = relationship("User", back_populates="trade_analytics")
+    strategy = relationship("Strategy", back_populates="trade_analytics")
+
+    def __repr__(self):
+        return f"<TradeAnalytics(id={self.id}, user_id={self.user_id}, analysis_date='{self.analysis_date}')>"
+
+
+class MarketEvent(Base):
+    __tablename__ = "market_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_type = Column(String, nullable=False, index=True) # E.g., 'news_release', 'earnings_report', 'fed_announcement'
+    description = Column(Text, nullable=False)
+    event_datetime = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    symbol = Column(String, nullable=True, index=True) # Associated asset symbol, if any
+    impact_score = Column(Float, nullable=True) # E.g., -1.0 to 1.0 or 1-5 scale
+    source = Column(String, nullable=True) # E.g., 'Reuters', 'BloombergTerminal', 'Twitter'
+    meta_data = Column(JSON, nullable=True) # Additional structured data
+
+    def __repr__(self):
+        return f"<MarketEvent(id={self.id}, event_type='{self.event_type}', symbol='{self.symbol}')>"
+
+# Example of how to create the tables in a database (e.g., SQLite for local dev)
+# This __main__ block should ideally not be run directly if using Alembic.
+# It's here for illustrative purposes or very basic, non-Alembic setups.
+if __name__ == "__main__":
+    # For SQLite, the file will be created in the same directory as this script if relative path is used.
+    # Better to use an absolute path or path derived from a config.
+    # For this example, let's assume a project root structure.
+    import os
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    DB_PATH = os.path.join(PROJECT_ROOT, "ai_trader_consolidated.db")
+    engine = create_engine(f"sqlite:///{DB_PATH}")
+
+    print(f"Attempting to create tables in database at: {DB_PATH}")
+    # Base.metadata.create_all(bind=engine) # This line would create tables.
+    # In an Alembic setup, you run 'alembic upgrade head'.
+    print("If using Alembic, run 'alembic upgrade head' to create/update tables.")
+    print("The Base.metadata.create_all() call is commented out in this example.")
+    print("Models defined in this file are now ready to be used with Alembic.")
+
+# To ensure all models are known to Base before Alembic import:
+# (This is usually handled by importing Base from here into env.py and models into your app)
+# No explicit list needed here as they are all defined in this file with the shared Base.
+
+# An __all__ can be useful for `from .models import *`
+__all__ = [
+    "Base",
+    "User",
+    "Asset",
+    "Strategy",
+    "PriceData",
+    "Signal",
+    "Order",
+    "BacktestResult",
+    "Trade",
+    "UserBehaviorLog",
+    "TradeAnalytics",
+    "MarketEvent",
+    "SignalType",
+    "OrderStatus",
+    "OrderType",
+    "OrderSide",
+    "TradeType",
+]
