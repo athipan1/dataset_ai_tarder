@@ -12,7 +12,8 @@ class Strategy(Base):
     description = Column(Text, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
-    owner = relationship("User")  # Establishes a relationship to the User model
+    owner = relationship("User", back_populates="strategies")  # Establishes a relationship to the User model
+    trade_analytics = relationship("TradeAnalytics", back_populates="strategy")
 
     __table_args__ = (
         Index("ix_strategy_name", "name"),
