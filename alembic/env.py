@@ -20,18 +20,35 @@ import os
 import sys
 # Ensure the project root (containing the 'ai_trader' package) is in the path.
 # alembic.ini's prepend_sys_path = . also helps if alembic is run from project root.
-# The path from env.py (in alembic/env.py) to project root is two levels up.
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+# The path from env.py (in alembic/env.py) to project root is one level up.
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+# Ensure all models are imported so Base.metadata is populated before it's assigned to target_metadata
+# This is crucial for Alembic autogenerate and for ensuring migrations have the correct context.
+import ai_trader.models.user  # noqa: E402, F401
+import ai_trader.models.strategy  # noqa: E402, F401
+import ai_trader.models.trade  # noqa: E402, F401
+# Add other models here if they define tables that Alembic should be aware of for autogenerate
+# e.g., if you create models for assets, orders, signals, etc.
+# import ai_trader.models.asset # noqa
+# import ai_trader.models.order # noqa
+
 from ai_trader.db.base import Base  # noqa: E402
 target_metadata = Base.metadata
+
+# Import settings from the new config module
+from ai_trader.core.config import settings # noqa: E402
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+def get_url():
+    """Helper function to get the database URL from settings."""
+    return settings.DATABASE_URL
 
 
 def run_migrations_offline() -> None:
@@ -46,7 +63,8 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    # url = config.get_main_option("sqlalchemy.url") # Original line
+    url = get_url() # Use the new settings
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -65,8 +83,12 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    # Use a dictionary for engine_from_config to set the URL programmatically
+    configuration = config.get_section(config.config_ini_section, {})
+    configuration["sqlalchemy.url"] = get_url() # Use the new settings
+
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration, # Pass the modified configuration
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
