@@ -12,3 +12,9 @@ pandas-ta
 yfinance
 python-binance
 setuptools
+faker
+fastapi
+uvicorn[standard]
+python-jose[cryptography]
+passlib[bcrypt]
+pydantic[email]
