@@ -12,3 +12,4 @@ pandas-ta
 yfinance
 python-binance
 setuptools
+pydantic
