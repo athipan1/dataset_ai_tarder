@@ -340,35 +340,8 @@ def test_user_deletion_cascades_and_set_null(db_session, test_user, test_strateg
     assert deleted_trade.deleted_at is not None
 
     # TradeAnalytics linked to user should be soft-deleted
-    deleted_analytics = TradeAnalytics.query_with_deleted(db_session).get(analytics_id)
-    # Assuming TradeAnalytics also inherits SoftDeleteMixin (needs to be added if not)
-    # If TradeAnalytics is not meant to be soft-deleted but hard-deleted by DB cascade, this test needs adjustment.
-    # For now, assuming it follows the cascade soft-delete pattern if User has direct relation.
-    # Based on current models, User.trade_analytics uses passive_deletes=True, which implies DB cascade.
-    # If User is soft_deleted, this relation isn't "deleted" at DB level.
-    # Let's assume TradeAnalytics should also be soft-deleted if its user is.
-    # This requires TradeAnalytics to have SoftDeleteMixin.
-    # For now, let's assume it's NOT soft-deleted by this path unless User.soft_delete explicitly does it.
-    # The current User.soft_delete does NOT explicitly soft-delete TradeAnalytics.
-    # So this check might fail or need adjustment.
-    # Let's assume for now that related items like TradeAnalytics are handled by DB cascade if User was hard-deleted.
-    # Since User is soft-deleted, these DB cascades don't run from User.
-    # If TradeAnalytics is related to Strategy (which IS soft-deleted), that path would trigger it.
-    # test_strategy.trade_analytics shows passive_deletes=True.
-    # This test will need careful review after running.
-    # For now, let's assume if Strategy is soft-deleted, its TradeAnalytics are also soft-deleted.
-    retrieved_analytics = db_session.get(TradeAnalytics, analytics_id) # Original get to see if it's gone or changed
-    if retrieved_analytics and hasattr(retrieved_analytics, 'is_deleted'):
-        assert retrieved_analytics.is_deleted is True
-        assert retrieved_analytics.deleted_at is not None
-    else:
-        # This case implies it was hard-deleted by DB cascade via Strategy, or not deleted at all.
-        # Given Strategy is soft-deleted, DB cascade for TradeAnalytics from Strategy won't happen.
-        # So, TradeAnalytics will only be soft-deleted if its soft_delete is called.
-        # Strategy.soft_delete does not currently cascade to TradeAnalytics.
-        # This means analytics linked directly to user or strategy will NOT be soft-deleted by this operation.
-        # This test needs to be re-evaluated based on desired behavior for TradeAnalytics.
-    # TradeAnalytics linked to user should be soft-deleted
+    # The if/else block below was the source of the IndentationError and represented old logic.
+    # It has been removed, and the correct assertions follow.
     deleted_analytics = TradeAnalytics.query_with_deleted(db_session).get(analytics_id)
     assert deleted_analytics is not None
     assert deleted_analytics.is_deleted is True
