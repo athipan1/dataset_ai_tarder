@@ -261,3 +261,115 @@ To ensure robust and maintainable database migrations, this project incorporates
     *   **Important**: Data migrations can be risky. Test them thoroughly. Ensure the `downgrade` path can correctly revert data changes if possible, or clearly document if it's a one-way transformation.
 
 By following these practices and leveraging the automated checks, we can maintain a more reliable and understandable database migration history.
+
+## Dockerized Development Environment
+
+This project includes a Dockerized setup using Docker Compose to provide a consistent and reproducible development environment. This is highly recommended for development.
+
+### Prerequisites
+
+*   Docker Desktop (for Windows or macOS) or Docker Engine and Docker Compose plugin (for Linux).
+
+### New Files Introduced
+
+*   `Dockerfile`: Defines the image for the Python application, including all dependencies.
+*   `docker-compose.yml`: Orchestrates the services needed for the application, including the backend application container and a PostgreSQL database container.
+*   `docker-entrypoint.sh`: A script that runs when the backend container starts. It waits for the database to be ready and then automatically applies database migrations.
+*   `.env.dev.docker`: Environment variable file specifically for the Docker setup. It's used by `docker-compose.yml` to configure the services (e.g., database credentials, `DATABASE_URL` for the backend). This file is ignored by Git.
+
+### Initial Setup for Docker Environment
+
+1.  **Copy Environment Configuration**:
+    If you haven't already, create the Docker-specific environment file by copying the example or your existing local `.env` and adjusting it:
+    ```bash
+    cp .env.example .env.dev.docker
+    ```
+    Then, edit `.env.dev.docker` and ensure the following variables are set correctly for the Docker environment:
+    *   `POSTGRES_USER=user`
+    *   `POSTGRES_PASSWORD=password`
+    *   `POSTGRES_DB=ai_trader_db`
+    *   `DATABASE_URL=postgresql://user:password@db:5432/ai_trader_db` (Note: `db` is the service name of the PostgreSQL container in `docker-compose.yml`).
+    *   `SECRET_KEY` (set to a unique, random string).
+    *   Any other API keys or settings your application needs.
+
+2.  **Build and Start Services**:
+    Open your terminal in the project root directory and run:
+    ```bash
+    docker compose up -d --build
+    ```
+    *   `docker compose up` will create and start the containers.
+    *   `-d` runs the containers in detached mode (in the background).
+    *   `--build` forces Docker to rebuild the images if there have been changes (e.g., in `Dockerfile` or source code copied into the image).
+
+    The first time you run this, Docker will download the base images (Python, PostgreSQL) and build your application image, which might take a few minutes. Subsequent starts will be much faster.
+    The `docker-entrypoint.sh` script in the `backend` service will automatically wait for the PostgreSQL database to be ready and then run `python scripts/upgrade_db.py` to apply migrations.
+
+### Verifying the Setup (Important Note)
+
+Due to limitations in some automated environments (like the one this agent might be using), direct execution of `docker compose up` might fail due to Docker daemon permission issues. **You will need to run these commands in your local development environment where Docker is properly configured and you have the necessary permissions.**
+
+### Common Docker Operations
+
+Once the services are running, you can manage them and perform common development tasks:
+
+*   **View Logs**:
+    *   For all services: `docker compose logs -f`
+    *   For a specific service (e.g., backend): `docker compose logs -f backend`
+    *   For the database: `docker compose logs -f db`
+
+*   **Stop Services**:
+    *   `docker compose down` (stops and removes containers, networks. Add `-v` to also remove named volumes like `postgres_data` if you want a clean slate for the DB).
+
+*   **Execute Commands in the Backend Container**:
+    The `backend` service runs the Python application. You can execute commands inside this container using `docker compose exec backend <your_command>`.
+
+    *   **Run Database Migrations (Manual)**:
+        Although migrations run automatically on startup, you can run them manually if needed:
+        ```bash
+        docker compose exec backend python scripts/upgrade_db.py
+        ```
+
+    *   **Seed Data**:
+        After the database is set up and migrated, you can seed it with initial data:
+        ```bash
+        docker compose exec backend python scripts/seed_users.py
+        docker compose exec backend python scripts/seed_assets.py
+        docker compose exec backend python scripts/seed_strategies.py
+        docker compose exec backend python scripts/seed_trades.py
+        # (Or a combined seed script if one is created)
+        ```
+
+    *   **Run Tests**:
+        Execute the pytest test suite:
+        ```bash
+        docker compose exec backend pytest
+        ```
+
+    *   **Open a Shell in the Backend Container**:
+        For debugging or running other commands:
+        ```bash
+        docker compose exec backend bash
+        ```
+
+*   **Accessing the Database**:
+    The PostgreSQL database is exposed on port `5433` on your host machine by default (see `POSTGRES_PORT_HOST` in `.env.dev.docker` and `docker-compose.yml`). You can connect to it using any SQL client (e.g., DBeaver, pgAdmin, `psql` CLI) with the following details (from `.env.dev.docker`):
+    *   Host: `localhost`
+    *   Port: `5433` (or your configured `POSTGRES_PORT_HOST`)
+    *   User: `user` (or your configured `POSTGRES_USER`)
+    *   Password: `password` (or your configured `POSTGRES_PASSWORD`)
+    *   Database Name: `ai_trader_db` (or your configured `POSTGRES_DB`)
+
+### Development Workflow with Docker
+
+*   **Live Code Reloading**: The `backend` service in `docker-compose.yml` mounts the current project directory (`.`) into the `/app` directory in the container. This means any changes you make to your local Python files will be immediately reflected in the container. If your application server supports hot-reloading (e.g., FastAPI with `uvicorn --reload`), it will restart automatically. For script-based changes, you'll just re-run the script via `docker compose exec`.
+*   **Dependency Changes**: If you add or change Python dependencies in `requirements.txt`, you'll need to rebuild the backend image:
+    ```bash
+    docker compose up -d --build backend
+    ```
+    Or, stop and rebuild all:
+    ```bash
+    docker compose down
+    docker compose up -d --build
+    ```
+
+This Docker setup aims to simplify development and ensure consistency across different machines.

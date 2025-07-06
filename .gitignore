@@ -95,6 +95,7 @@ celerybeat.pid
 .env
 .env.local
 .env.prod
+.env.*.docker # Ignore all docker specific env files
 .venv
 env/
 venv/
