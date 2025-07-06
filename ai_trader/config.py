@@ -4,9 +4,11 @@ from dotenv import load_dotenv
 from typing import Optional, Union
 from urllib.parse import quote_plus # For safely encoding password in DB URL
 
-# Load values from .env file (if it exists) for local development
-# In production, environment variables should be set directly in the environment
-load_dotenv()
+# Load values from .env file for base configuration
+# and then from .env.local to override them for local development.
+# In production, environment variables should be set directly in the environment.
+load_dotenv()  # Load .env first
+load_dotenv(".env.local", override=True)  # Load .env.local and override if variables exist
 
 class Settings:
     PROJECT_NAME: str = "AI Trader"
@@ -46,6 +48,10 @@ class Settings:
     # These should always be loaded from environment variables and never hardcoded.
     SOME_EXCHANGE_API_KEY: Optional[str] = os.getenv("SOME_EXCHANGE_API_KEY")
     SOME_EXCHANGE_API_SECRET: Optional[str] = os.getenv("SOME_EXCHANGE_API_SECRET")
+
+    # Binance API Keys (used in scripts/fetch_price_data.py)
+    BINANCE_API_KEY: Optional[str] = os.getenv("BINANCE_API_KEY")
+    BINANCE_API_SECRET: Optional[str] = os.getenv("BINANCE_API_SECRET")
 
     # --- Logging Configuration (Example) ---
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
