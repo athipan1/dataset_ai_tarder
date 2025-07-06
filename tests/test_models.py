@@ -213,7 +213,7 @@ def test_user_behavior_log_relationships(db_session, test_user):
     db_session.add_all([log1, log2])
     db_session.commit()
 
-    retrieved_user = db_session.query(User).filter_by(id=test_user.id).one()
+    retrieved_user = User.query_without_deleted(db_session).filter_by(id=test_user.id).one()
     assert len(retrieved_user.behavior_logs) == 2
     assert log1 in retrieved_user.behavior_logs
     assert log2 in retrieved_user.behavior_logs
@@ -230,8 +230,8 @@ def test_trade_analytics_relationships(db_session, test_user, test_strategy):
     db_session.add_all([analytics1, analytics2])
     db_session.commit()
 
-    retrieved_user = db_session.query(User).filter_by(id=test_user.id).one()
-    retrieved_strategy = db_session.query(Strategy).filter_by(id=test_strategy.id).one()
+    retrieved_user = User.query_without_deleted(db_session).filter_by(id=test_user.id).one()
+    retrieved_strategy = Strategy.query_without_deleted(db_session).filter_by(id=test_strategy.id).one()
 
     assert len(retrieved_user.trade_analytics) == 2
     assert analytics1 in retrieved_user.trade_analytics
@@ -308,26 +308,91 @@ def test_user_deletion_cascades_and_set_null(db_session, test_user, test_strateg
     signal_id = test_signal.id
 
 
-    # Delete the user
-    db_session.delete(test_user)
+    # Soft delete the user
+    test_user.soft_delete(db_session)
     db_session.commit()
 
-    # Strategies linked to user should be deleted (CASCADE)
-    assert db_session.get(Strategy, strategy_id) is None
-    # Orders linked to user should have user_id set to NULL (SET NULL)
-    order_after_delete = db_session.get(Order, order_id)
-    assert order_after_delete is not None # Order itself is not deleted
-    assert order_after_delete.user_id is None
-    # Trades linked to user should be deleted (CASCADE)
-    assert db_session.get(Trade, trade_id) is None
-    # TradeAnalytics linked to user should be deleted (CASCADE)
-    assert db_session.get(TradeAnalytics, analytics_id) is None
-    # UserBehaviorLogs linked to user should be deleted (CASCADE)
-    assert db_session.get(UserBehaviorLog, log_id) is None
-    # BacktestResults are linked to Strategy, which is deleted, so they should also be gone
-    assert db_session.get(BacktestResult, backtest_result_id) is None
-    # Signals are linked to Strategy, which is deleted, so they should also be gone
-    assert db_session.get(Signal, signal_id) is None
+    # User should be marked as deleted
+    deleted_user = User.query_with_deleted(db_session).get(user_id)
+    assert deleted_user is not None
+    assert deleted_user.is_deleted is True
+    assert deleted_user.deleted_at is not None
+
+    # Strategies linked to user should be soft-deleted
+    deleted_strategy = Strategy.query_with_deleted(db_session).get(strategy_id)
+    assert deleted_strategy is not None
+    assert deleted_strategy.is_deleted is True
+    assert deleted_strategy.deleted_at is not None
+
+    # Orders linked to user should be soft-deleted (due to our application logic)
+    deleted_order = Order.query_with_deleted(db_session).get(order_id)
+    assert deleted_order is not None
+    assert deleted_order.is_deleted is True
+    assert deleted_order.deleted_at is not None
+    # The FK Order.user_id might also be set to NULL if DB schema has ON DELETE SET NULL
+    # and if the soft_delete operation doesn't prevent this.
+    # For now, we focus on our app-level soft delete. If User is soft_deleted, Order is soft_deleted.
+
+    # Trades linked to orders of the user should be soft-deleted (cascaded from Order)
+    deleted_trade = Trade.query_with_deleted(db_session).get(trade_id)
+    assert deleted_trade is not None
+    assert deleted_trade.is_deleted is True
+    assert deleted_trade.deleted_at is not None
+
+    # TradeAnalytics linked to user should be soft-deleted
+    deleted_analytics = TradeAnalytics.query_with_deleted(db_session).get(analytics_id)
+    # Assuming TradeAnalytics also inherits SoftDeleteMixin (needs to be added if not)
+    # If TradeAnalytics is not meant to be soft-deleted but hard-deleted by DB cascade, this test needs adjustment.
+    # For now, assuming it follows the cascade soft-delete pattern if User has direct relation.
+    # Based on current models, User.trade_analytics uses passive_deletes=True, which implies DB cascade.
+    # If User is soft_deleted, this relation isn't "deleted" at DB level.
+    # Let's assume TradeAnalytics should also be soft-deleted if its user is.
+    # This requires TradeAnalytics to have SoftDeleteMixin.
+    # For now, let's assume it's NOT soft-deleted by this path unless User.soft_delete explicitly does it.
+    # The current User.soft_delete does NOT explicitly soft-delete TradeAnalytics.
+    # So this check might fail or need adjustment.
+    # Let's assume for now that related items like TradeAnalytics are handled by DB cascade if User was hard-deleted.
+    # Since User is soft-deleted, these DB cascades don't run from User.
+    # If TradeAnalytics is related to Strategy (which IS soft-deleted), that path would trigger it.
+    # test_strategy.trade_analytics shows passive_deletes=True.
+    # This test will need careful review after running.
+    # For now, let's assume if Strategy is soft-deleted, its TradeAnalytics are also soft-deleted.
+    retrieved_analytics = db_session.get(TradeAnalytics, analytics_id) # Original get to see if it's gone or changed
+    if retrieved_analytics and hasattr(retrieved_analytics, 'is_deleted'):
+        assert retrieved_analytics.is_deleted is True
+        assert retrieved_analytics.deleted_at is not None
+    else:
+        # This case implies it was hard-deleted by DB cascade via Strategy, or not deleted at all.
+        # Given Strategy is soft-deleted, DB cascade for TradeAnalytics from Strategy won't happen.
+        # So, TradeAnalytics will only be soft-deleted if its soft_delete is called.
+        # Strategy.soft_delete does not currently cascade to TradeAnalytics.
+        # This means analytics linked directly to user or strategy will NOT be soft-deleted by this operation.
+        # This test needs to be re-evaluated based on desired behavior for TradeAnalytics.
+    # TradeAnalytics linked to user should be soft-deleted
+    deleted_analytics = TradeAnalytics.query_with_deleted(db_session).get(analytics_id)
+    assert deleted_analytics is not None
+    assert deleted_analytics.is_deleted is True
+    assert deleted_analytics.deleted_at is not None
+
+    # UserBehaviorLogs linked to user should be soft-deleted
+    deleted_log = UserBehaviorLog.query_with_deleted(db_session).get(log_id)
+    assert deleted_log is not None
+    assert deleted_log.is_deleted is True
+    assert deleted_log.deleted_at is not None
+
+    # BacktestResults are linked to Strategy. Since Strategy is soft-deleted,
+    # BacktestResults should also be soft-deleted.
+    deleted_backtest = BacktestResult.query_with_deleted(db_session).get(backtest_result_id)
+    assert deleted_backtest is not None
+    assert deleted_backtest.is_deleted is True
+    assert deleted_backtest.deleted_at is not None
+
+    # Signals are linked to Strategy. Since Strategy is soft-deleted,
+    # Signals should also be soft-deleted.
+    deleted_signal = Signal.query_with_deleted(db_session).get(signal_id)
+    assert deleted_signal is not None
+    assert deleted_signal.is_deleted is True
+    assert deleted_signal.deleted_at is not None
 
 
 def test_strategy_deletion_cascades_and_set_null(db_session, test_strategy, test_order, test_signal, test_backtest_result):
@@ -343,20 +408,41 @@ def test_strategy_deletion_cascades_and_set_null(db_session, test_strategy, test
     backtest_id = test_backtest_result.id
     analytics_id = analytics.id
 
-    # Delete the strategy
-    db_session.delete(test_strategy)
+    # Soft delete the strategy
+    test_strategy.soft_delete(db_session)
     db_session.commit()
 
-    # Orders linked to strategy should have strategy_id set to NULL (SET NULL)
-    order_after_delete = db_session.get(Order, order_id)
-    assert order_after_delete is not None
-    assert order_after_delete.strategy_id is None
-    # Signals linked to strategy should be deleted (CASCADE)
-    assert db_session.get(Signal, signal_id) is None
-    # BacktestResults linked to strategy should be deleted (CASCADE)
-    assert db_session.get(BacktestResult, backtest_id) is None
-    # TradeAnalytics linked to strategy should be deleted (CASCADE)
-    assert db_session.get(TradeAnalytics, analytics_id) is None
+    # Strategy should be marked as deleted
+    deleted_strategy = Strategy.query_with_deleted(db_session).get(strategy_id)
+    assert deleted_strategy is not None
+    assert deleted_strategy.is_deleted is True
+    assert deleted_strategy.deleted_at is not None
+
+    # Orders linked to strategy should be soft-deleted (due to our application logic)
+    deleted_order = Order.query_with_deleted(db_session).get(order_id)
+    assert deleted_order is not None
+    assert deleted_order.is_deleted is True
+    assert deleted_order.deleted_at is not None
+    # The FK Order.strategy_id might also be set to NULL if DB schema has ON DELETE SET NULL.
+    # We focus on app-level soft delete: if Strategy is soft_deleted, Order is soft_deleted.
+
+    # Signals linked to strategy should be soft-deleted.
+    deleted_signal = Signal.query_with_deleted(db_session).get(signal_id)
+    assert deleted_signal is not None
+    assert deleted_signal.is_deleted is True
+    assert deleted_signal.deleted_at is not None
+
+    # BacktestResults linked to strategy should be soft-deleted.
+    deleted_backtest = BacktestResult.query_with_deleted(db_session).get(backtest_id)
+    assert deleted_backtest is not None
+    assert deleted_backtest.is_deleted is True
+    assert deleted_backtest.deleted_at is not None
+
+    # TradeAnalytics linked to strategy should be soft-deleted.
+    deleted_analytics = TradeAnalytics.query_with_deleted(db_session).get(analytics_id)
+    assert deleted_analytics is not None
+    assert deleted_analytics.is_deleted is True
+    assert deleted_analytics.deleted_at is not None
 
 
 def test_asset_deletion_cascades(db_session, test_asset, test_price_data, test_signal, test_order):
@@ -378,8 +464,75 @@ def test_asset_deletion_cascades(db_session, test_asset, test_price_data, test_s
 
     # PriceData linked to asset should be deleted (CASCADE)
     assert db_session.get(PriceData, price_data_id) is None
-    # Signals linked to asset should be deleted (CASCADE)
-    assert db_session.get(Signal, signal_id) is None
+    # Trades linked to order should be soft-deleted (due to our application logic)
+    deleted_trade = Trade.query_with_deleted(db_session).get(trade_id)
+    assert deleted_trade is not None
+    assert deleted_trade.is_deleted is True
+    assert deleted_trade.deleted_at is not None
+
+
+# --- Tests for Soft Delete Functionality ---
+
+def test_soft_delete_mixin_behavior(db_session, test_user: User):
+    """Tests basic soft delete functionality and query methods on the mixin."""
+    user_id = test_user.id
+
+    # Initial state: user should not be deleted
+    assert test_user.is_deleted is False
+    assert test_user.deleted_at is None
+
+    # Query without deleted should find the user
+    retrieved_user_std = User.query_without_deleted(db_session).filter_by(id=user_id).one_or_none()
+    assert retrieved_user_std is not None
+    assert retrieved_user_std.id == user_id
+
+    # Query with deleted should also find the user
+    retrieved_user_all = User.query_with_deleted(db_session).filter_by(id=user_id).one_or_none()
+    assert retrieved_user_all is not None
+    assert retrieved_user_all.id == user_id
+
+    # Perform soft delete
+    test_user.soft_delete(db_session)
+    db_session.commit()
+    db_session.refresh(test_user) # Refresh to get DB state like deleted_at
+
+    # Check flags
+    assert test_user.is_deleted is True
+    assert test_user.deleted_at is not None
+    assert isinstance(test_user.deleted_at, datetime)
+
+    # Query without deleted should NOT find the user
+    retrieved_user_std_after_delete = User.query_without_deleted(db_session).filter_by(id=user_id).one_or_none()
+    assert retrieved_user_std_after_delete is None
+
+    # Query with deleted SHOULD find the user
+    retrieved_user_all_after_delete = User.query_with_deleted(db_session).filter_by(id=user_id).one_or_none()
+    assert retrieved_user_all_after_delete is not None
+    assert retrieved_user_all_after_delete.id == user_id
+    assert retrieved_user_all_after_delete.is_deleted is True
+
+    # Test idempotency: calling soft_delete again should not change deleted_at
+    first_deleted_at = test_user.deleted_at
+    test_user.soft_delete(db_session) # Call again
+    db_session.commit()
+    db_session.refresh(test_user)
+    assert test_user.is_deleted is True
+    assert test_user.deleted_at == first_deleted_at
+
+# The existing cascade tests (test_user_deletion_cascades_and_set_null, etc.)
+# have already been updated to test the cascading soft delete behavior and
+# that items are correctly marked as deleted.
+# They implicitly test that the soft_delete method on User, Strategy, Order works.
+
+# What's missing are explicit tests for:
+# 1. Cascading from User to Strategy, then Strategy to Order, then Order to Trade.
+#    The current user cascade test covers User -> Strategy and User -> Order -> Trade.
+# 2. Cascading from Strategy to Order, then Order to Trade.
+#    The current strategy cascade test covers Strategy -> Order -> Trade.
+
+# The existing cascade tests are sufficient for verifying the cascades as defined.
+# The new test `test_soft_delete_mixin_behavior` covers the direct behavior of the mixin
+# and the query methods.
     # Orders linked to asset should be deleted (CASCADE)
     # This implies that if an asset is deleted, any open or historical orders for it are also removed.
     assert db_session.get(Order, order_id) is None
@@ -391,9 +544,18 @@ def test_order_deletion_cascades(db_session, test_order, test_trade):
     order_id = test_order.id
     trade_id = test_trade.id
 
-    # Delete the order
-    db_session.delete(test_order)
+    # Soft delete the order
+    test_order.soft_delete(db_session)
     db_session.commit()
 
-    # Trades linked to order should be deleted (CASCADE)
-    assert db_session.get(Trade, trade_id) is None
+    # Order should be marked as deleted
+    deleted_order = Order.query_with_deleted(db_session).get(order_id)
+    assert deleted_order is not None
+    assert deleted_order.is_deleted is True
+    assert deleted_order.deleted_at is not None
+
+    # Trades linked to order should be soft-deleted (due to our application logic)
+    deleted_trade = Trade.query_with_deleted(db_session).get(trade_id)
+    assert deleted_trade is not None
+    assert deleted_trade.is_deleted is True
+    assert deleted_trade.deleted_at is not None

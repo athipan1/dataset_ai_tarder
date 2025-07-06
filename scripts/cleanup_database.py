@@ -82,8 +82,16 @@ def cleanup_table(
             logger.info(f"Archiving data for {table_name}...")
             data_to_archive = []
             if orm_model_class and hasattr(orm_model_class, timestamp_column):
-                data_to_archive = session.query(orm_model_class).filter(getattr(orm_model_class, timestamp_column) < cutoff_date).all()
+                # If the model class supports soft delete, query including deleted items for archival,
+                # as this script performs a hard delete later.
+                if hasattr(orm_model_class, 'query_with_deleted'):
+                    logger.info(f"Using {orm_model_class.__name__}.query_with_deleted() for archival query.")
+                    data_to_archive = orm_model_class.query_with_deleted(session).filter(getattr(orm_model_class, timestamp_column) < cutoff_date).all()
+                else:
+                    logger.info(f"Using session.query({orm_model_class.__name__}) for archival query (model does not have query_with_deleted).")
+                    data_to_archive = session.query(orm_model_class).filter(getattr(orm_model_class, timestamp_column) < cutoff_date).all()
             else:
+                logger.info(f"Using raw SQL for archival query for table {table_name}.")
                 stmt_select = text(f"SELECT * FROM {table_name} WHERE {timestamp_column} < :cutoff_date")
                 result_proxy = session.execute(stmt_select, {"cutoff_date": cutoff_date})
                 class DynamicRow: pass
