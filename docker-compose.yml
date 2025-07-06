@@ -1,0 +1,51 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai_trader_backend
+    restart: unless-stopped
+    volumes:
+      - .:/app  # Mount the current directory to /app in the container for live code changes
+    env_file:
+      - .env.dev.docker # Load environment variables from this file
+    environment:
+      - PYTHONPATH=/app
+    depends_on:
+      db:
+        condition: service_healthy # Wait for db to be healthy
+    networks:
+      - ai_trader_network
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import sys; sys.exit(0)' || exit 1"] # Basic check, can be improved
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s # Give it time to start up, especially if migrations run
+
+  db:
+    image: postgres:13-alpine
+    container_name: ai_trader_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-user} # Use from .env.dev.docker or default
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-ai_trader_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT_HOST:-5433}:${POSTGRES_PORT_CONTAINER:-5432}" # Map container 5432 to host 5433 to avoid conflicts
+    networks:
+      - ai_trader_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -q"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data: # Define a named volume for PostgreSQL data persistence
+
+networks:
+  ai_trader_network: # Define a custom network
+    driver: bridge
