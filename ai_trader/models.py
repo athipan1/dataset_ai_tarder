@@ -10,6 +10,9 @@ from typing import Optional
 
 Base = declarative_base()
 
+import datetime as dt # Alias for easier use of datetime.UTC if needed, or just use datetime.UTC
+from datetime import timezone # For datetime.UTC
+
 # --- Soft Delete Mixin ---
 
 class SoftDeleteMixin:
@@ -35,7 +38,7 @@ class SoftDeleteMixin:
             return
 
         self.is_deleted = True
-        self.deleted_at = datetime.datetime.utcnow()
+        self.deleted_at = datetime.datetime.now(timezone.utc)
 
         # Add to session if not already persistent, or if changes need to be flushed
         # This ensures that the instance is part of the session so that relationships can be loaded.
@@ -177,7 +180,7 @@ class Asset(Base): # Asset model does not get SoftDeleteMixin
     asset_type = Column(String, nullable=True)
     created_at = Column(DateTime, default=func.now())
 
-    price_data = relationship("PriceData", back_populates="asset", passive_deletes=True)
+    price_data = relationship("PriceData", back_populates="asset", cascade="all, delete", lazy="dynamic")
     signals = relationship("Signal", back_populates="asset", passive_deletes=True)
     orders = relationship("Order", back_populates="asset", passive_deletes=True)
 

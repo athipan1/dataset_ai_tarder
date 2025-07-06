@@ -1,4 +1,5 @@
 import datetime
+from datetime import timezone # For datetime.UTC
 import enum
 from sqlalchemy import event
 from sqlalchemy.orm import Session, attributes
@@ -124,7 +125,7 @@ def log_insert(mapper, connection, target):
         action="INSERT",
         changed_by=get_current_user_id(),
         changes=changes,
-        timestamp=datetime.datetime.utcnow()
+        timestamp=datetime.datetime.now(timezone.utc)
     )
     session.add(log_entry)
     # The session that `target` is part of will handle flushing this log_entry.
@@ -161,7 +162,7 @@ def log_update(mapper, connection, target):
         action="UPDATE",
         changed_by=get_current_user_id(),
         changes=changes,
-        timestamp=datetime.datetime.utcnow()
+        timestamp=datetime.datetime.now(timezone.utc)
     )
     session.add(log_entry)
 
@@ -200,7 +201,7 @@ def log_delete(mapper, connection, target):
         action="DELETE",
         changed_by=get_current_user_id(),
         changes=changes, # Log current values as "old" values effectively
-        timestamp=datetime.datetime.utcnow()
+        timestamp=datetime.datetime.now(timezone.utc)
     )
     session.add(log_entry)
     if session.bind == connection : # If we created a temp session for delete
