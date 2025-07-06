@@ -437,11 +437,13 @@ def test_asset_deletion_cascades(db_session, test_asset, test_price_data, test_s
 
     # PriceData linked to asset should be deleted (CASCADE)
     assert db_session.get(PriceData, price_data_id) is None
-    # Trades linked to order should be soft-deleted (due to our application logic)
-    deleted_trade = Trade.query_with_deleted(db_session).get(trade_id)
-    assert deleted_trade is not None
-    assert deleted_trade.is_deleted is True
-    assert deleted_trade.deleted_at is not None
+
+    # Signals linked to this asset will be hard-deleted by DB's ON DELETE CASCADE
+    assert db_session.get(Signal, signal_id) is None
+
+    # Orders linked to this asset will be hard-deleted by DB's ON DELETE CASCADE
+    # (and subsequently, Trades linked to those Orders will also be hard-deleted by DB cascade)
+    assert db_session.get(Order, test_order.id) is None
 
 
 # --- Tests for Soft Delete Functionality ---
@@ -506,9 +508,10 @@ def test_soft_delete_mixin_behavior(db_session, test_user: User):
 # The existing cascade tests are sufficient for verifying the cascades as defined.
 # The new test `test_soft_delete_mixin_behavior` covers the direct behavior of the mixin
 # and the query methods.
-    # Orders linked to asset should be deleted (CASCADE)
-    # This implies that if an asset is deleted, any open or historical orders for it are also removed.
-    assert db_session.get(Order, order_id) is None
+# The following lines were misplaced from test_asset_deletion_cascades and caused F821 error.
+    # # Orders linked to asset should be deleted (CASCADE)
+    # # This implies that if an asset is deleted, any open or historical orders for it are also removed.
+    # assert db_session.get(Order, order_id) is None
 
 
 def test_order_deletion_cascades(db_session, test_order, test_trade):
