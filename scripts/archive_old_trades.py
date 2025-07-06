@@ -109,7 +109,9 @@ def archive_and_delete_old_trades(
 
         while attempt < max_retries:
             try:
-                trade_query = session.query(Trade)\
+                # Query trades including those already soft-deleted, as the script's purpose is to archive them
+                # based on age, and then they are soft-deleted again (which is idempotent).
+                trade_query = Trade.query_with_deleted(session)\
                     .filter(Trade.timestamp < cutoff_date)\
                     .order_by(Trade.id)
 
@@ -136,7 +138,8 @@ def archive_and_delete_old_trades(
                 if not dry_run:
                     if trades_in_batch:
                         for trade_to_delete in trades_in_batch:
-                             session.delete(trade_to_delete)
+                            # Use soft_delete instead of hard delete
+                            trade_to_delete.soft_delete(session)
                         deleted_in_batch = len(trades_in_batch)
                 else:
                     deleted_in_batch = len(trades_in_batch)

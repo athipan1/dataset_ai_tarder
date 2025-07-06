@@ -2,12 +2,110 @@ import enum
 import datetime # Added for AuditLog timestamp default
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float, DateTime, Enum as DBEnum, # Renamed Enum to DBEnum to avoid conflict
-    ForeignKey, Text, Index, JSON, Numeric, Date, UniqueConstraint
+    ForeignKey, Text, Index, JSON, Numeric, Date, UniqueConstraint, Boolean
 )
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.orm import relationship, declarative_base, Mapped, mapped_column
 from sqlalchemy.sql import func
+from typing import Optional
 
 Base = declarative_base()
+
+# --- Soft Delete Mixin ---
+
+class SoftDeleteMixin:
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    deleted_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
+    @classmethod
+    def query_with_deleted(cls, session):
+        return session.query(cls)
+
+    @classmethod
+    def query_without_deleted(cls, session):
+        return session.query(cls).filter(cls.is_deleted == False)
+
+    # Default query to exclude deleted items
+    # This assumes you are using session.query(Model) style.
+    # If using query_property, that needs to be setup differently.
+    # For now, providing class methods as a common pattern.
+    # A more advanced setup would involve a custom Query class for query_property.
+
+    def soft_delete(self, session):
+        if self.is_deleted: # Avoid recursion or reprocessing
+            return
+
+        self.is_deleted = True
+        self.deleted_at = datetime.datetime.utcnow()
+
+        # Add to session if not already persistent, or if changes need to be flushed
+        # This ensures that the instance is part of the session so that relationships can be loaded.
+        if self not in session:
+            session.add(self)
+
+        if isinstance(self, User):
+            # Soft delete related Strategies
+            if hasattr(self, 'strategies'):
+                for strategy in self.strategies:
+                    if not strategy.is_deleted:
+                        strategy.soft_delete(session)
+            # Soft delete related Orders
+            if hasattr(self, 'orders'):
+                for order in self.orders:
+                    if not order.is_deleted:
+                        order.soft_delete(session)
+            # Soft delete related Trades (assuming direct relationship or via orders)
+            # If Trades are only linked via Orders, they will be caught by Order's soft_delete
+            # If User has a direct 'trades' relationship:
+            if hasattr(self, 'trades') and self.trades: # Check if 'trades' attribute exists and is not None
+                for trade in self.trades: # Note: User model does not have direct 'trades' relationship.
+                                          # This block might be for a generic case or other models.
+                                          # User's trades are cascaded via User -> Order -> Trade.
+                    if not trade.is_deleted:
+                        trade.soft_delete(session)
+
+            # Cascade to UserBehaviorLog
+            if hasattr(self, 'behavior_logs'):
+                for log in self.behavior_logs:
+                    if not log.is_deleted: # UserBehaviorLog must be SoftDeleteMixin
+                        log.soft_delete(session)
+
+            # Cascade to TradeAnalytics (those directly related to User)
+            if hasattr(self, 'trade_analytics'): # User.trade_analytics relationship
+                for analytic in self.trade_analytics:
+                    if not analytic.is_deleted: # TradeAnalytics must be SoftDeleteMixin
+                        analytic.soft_delete(session)
+
+        elif isinstance(self, Strategy):
+            # Soft delete related Orders (which will then cascade to Trades)
+            if hasattr(self, 'orders'):
+                for order in self.orders:
+                    if not order.is_deleted:
+                        order.soft_delete(session)
+
+            # Cascade to Signals
+            if hasattr(self, 'signals'):
+                for signal_item in self.signals: # Renamed to avoid conflict with Signal class
+                    if not signal_item.is_deleted: # Signal must be SoftDeleteMixin
+                        signal_item.soft_delete(session)
+
+            # Cascade to BacktestResult
+            if hasattr(self, 'backtest_results'):
+                for result in self.backtest_results:
+                    if not result.is_deleted: # BacktestResult must be SoftDeleteMixin
+                        result.soft_delete(session)
+
+            # Cascade to TradeAnalytics (those related to Strategy)
+            if hasattr(self, 'trade_analytics'): # Strategy.trade_analytics relationship
+                for analytic in self.trade_analytics:
+                    if not analytic.is_deleted: # TradeAnalytics must be SoftDeleteMixin
+                        analytic.soft_delete(session)
+
+        elif isinstance(self, Order):
+            # Soft delete related Trades
+            if hasattr(self, 'trades'):
+                for trade in self.trades:
+                    if not trade.is_deleted:
+                        trade.soft_delete(session)
 
 # --- Enums ---
 
@@ -41,7 +139,7 @@ class TradeType(enum.Enum):
 
 # --- Models ---
 
-class User(Base):
+class User(SoftDeleteMixin, Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -70,7 +168,7 @@ class User(Base):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
 
 
-class Asset(Base):
+class Asset(Base): # Asset model does not get SoftDeleteMixin
     __tablename__ = "assets"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -87,7 +185,7 @@ class Asset(Base):
         return f"<Asset(id={self.id}, symbol='{self.symbol}')>"
 
 
-class Strategy(Base):
+class Strategy(SoftDeleteMixin, Base):
     __tablename__ = "strategies"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -116,7 +214,7 @@ class Strategy(Base):
         return f"<Strategy(id={self.id}, name='{self.name}')>"
 
 
-class PriceData(Base):
+class PriceData(Base): # PriceData model does not get SoftDeleteMixin
     __tablename__ = "price_data"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -139,7 +237,7 @@ class PriceData(Base):
         return f"<PriceData(asset_id={self.asset_id}, timestamp='{self.timestamp}', close={self.close})>"
 
 
-class Signal(Base):
+class Signal(SoftDeleteMixin, Base): # Added SoftDeleteMixin
     __tablename__ = "signals"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -161,8 +259,9 @@ class Signal(Base):
     def __repr__(self):
         return f"<Signal(id={self.id}, asset_id={self.asset_id}, strategy_id={self.strategy_id}, type='{self.signal_type.value}')>"
 
+# The entire duplicate Signal class definition below has been removed.
 
-class Order(Base):
+class Order(SoftDeleteMixin, Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -199,7 +298,7 @@ class Order(Base):
         return f"<Order(id={self.id}, asset_id={self.asset_id}, type='{self.order_type.value}', side='{self.order_side.value}', status='{self.status.value}')>"
 
 
-class BacktestResult(Base):
+class BacktestResult(SoftDeleteMixin, Base): # Added SoftDeleteMixin
     __tablename__ = "backtest_results"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -232,7 +331,7 @@ class BacktestResult(Base):
 
 # --- New Models from ai_trader/models/ ---
 
-class Trade(Base):
+class Trade(SoftDeleteMixin, Base):
     __tablename__ = "trades" # This table might conflict with 'orders' if they represent similar things.
                            # Assuming 'trades' are actual executed transactions vs 'orders' which can be pending/cancelled.
 
@@ -314,7 +413,7 @@ class ArchivedTrade(Base):
         )
 
 
-class UserBehaviorLog(Base):
+class UserBehaviorLog(SoftDeleteMixin, Base): # Added SoftDeleteMixin
     __tablename__ = "user_behavior_logs"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -330,7 +429,7 @@ class UserBehaviorLog(Base):
         return f"<UserBehaviorLog(id={self.id}, user_id={self.user_id}, action_type='{self.action_type}')>"
 
 
-class TradeAnalytics(Base):
+class TradeAnalytics(SoftDeleteMixin, Base): # Added SoftDeleteMixin
     __tablename__ = "trade_analytics" # This seems to be summary data.
 
     id = Column(Integer, primary_key=True, index=True)
