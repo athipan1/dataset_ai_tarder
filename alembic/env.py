@@ -78,16 +78,26 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    # Use a dictionary for engine_from_config to set the URL programmatically
-    configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = get_url() # Use the new settings
+    # Check if an engine is passed directly via config attributes (e.g., from tests)
+    connectable = config.attributes.get('connection_engine_for_tests')
 
-    connectable = engine_from_config(
-        configuration, # Pass the modified configuration
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    if connectable is None:
+        # No direct engine passed, so configure one based on URL (normal CLI flow)
+        db_url = config.get_main_option("sqlalchemy.url")
+        if not db_url:
+            db_url = get_url() # Fallback to settings from ai_trader.config
 
+        engine_config_dict = config.get_section(config.config_ini_section, {})
+        engine_config_dict["sqlalchemy.url"] = db_url
+
+        connectable = engine_from_config(
+            engine_config_dict,
+            prefix="sqlalchemy.",
+            poolclass=pool.NullPool,
+        )
+    # else: Engine was passed directly from tests, use it.
+
+    # Now connectable is either the test_engine or the newly created engine
     with connectable.connect() as connection:
         context.configure(
             connection=connection,

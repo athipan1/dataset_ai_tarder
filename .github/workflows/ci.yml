@@ -58,12 +58,8 @@ jobs:
 
       - name: Test with pytest
         env:
-          # This TEST_DB_URL will be picked up by tests/test_migrations.py
-          # By default, test_migrations.py uses SQLite in-memory.
-          # To make migration tests use the PostgreSQL service (if enabled above), uncomment the next line:
-          # TEST_DB_URL: "postgresql://test_ci_user:test_ci_password@localhost:5432/ai_trader_ci_test_db"
-
-          # Other environment variables that might be needed by your application during tests
+          # Environment variables that might be needed by your application during tests
+          # The test_migrations.py script uses an in-memory SQLite DB by default for its specific tests.
           SECRET_KEY: "dummy_secret_for_ci_tests" # If settings/app setup needs it
           # PYTHONASYNCIODEBUG: "1" # Optional: for more verbose asyncio errors if using async
         run: pytest tests/ # Explicitly state the tests directory
