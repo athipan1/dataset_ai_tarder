@@ -259,35 +259,7 @@ class Signal(SoftDeleteMixin, Base): # Added SoftDeleteMixin
     def __repr__(self):
         return f"<Signal(id={self.id}, asset_id={self.asset_id}, strategy_id={self.strategy_id}, type='{self.signal_type.value}')>"
 
-
-# Signal model now inherits SoftDeleteMixin
-class Signal(SoftDeleteMixin, Base): # Added SoftDeleteMixin
-    __tablename__ = "signals"
-
-    id = Column(Integer, primary_key=True, index=True)
-    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False)
-    strategy_id = Column(Integer, ForeignKey("strategies.id", ondelete="CASCADE"), nullable=False)
-    timestamp = Column(DateTime, nullable=False, index=True)
-    signal_type = Column(DBEnum(SignalType), nullable=False, index=True)
-    confidence_score = Column(Float, nullable=True)
-    risk_score = Column(Float, nullable=True)
-    price_at_signal = Column(Float, nullable=True)
-
-    asset = relationship("Asset", back_populates="signals")
-    strategy = relationship("Strategy", back_populates="signals")
-
-    __table_args__ = (
-        Index("idx_signal_asset_strategy_timestamp", "asset_id", "strategy_id", "timestamp"),
-    )
-
-    # __repr__ is inherited from SoftDeleteMixin if not overridden, or keep custom if needed.
-    # For now, let's assume the default repr is fine or add one if missing from original.
-    # Original Signal model had a __repr__ method. Let's ensure it's preserved or adapted.
-    # The replace block for Signal was small, so checking the original file content again.
-    # Original Signal.__repr__:
-    # def __repr__(self):
-    #     return f"<Signal(id={self.id}, asset_id={self.asset_id}, strategy_id={self.strategy_id}, type='{self.signal_type.value}')>"
-    # This should be kept.
+# The entire duplicate Signal class definition below has been removed.
 
 class Order(SoftDeleteMixin, Base):
     __tablename__ = "orders"
