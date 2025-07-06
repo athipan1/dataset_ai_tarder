@@ -23,7 +23,41 @@ The core of the project is `ai_trader/models.py`, which defines the database str
     *   **PostgreSQL (Optional):**
         *   Ensure you have PostgreSQL server installed and running.
         *   Create a database and user.
-        *   Update the connection string in your `.env` file (see `ai_trader/config.py` for how `DATABASE_URL` is loaded).
+        *   Configure your database connection details in an environment file (see "Environment Configuration" below).
+
+## Environment Configuration
+
+This project uses `python-dotenv` to manage environment variables, making it easy to configure settings for different environments (local development, testing, production).
+
+1.  **`.env.example`**: This file serves as a template and lists all the environment variables used by the application (e.g., database connection strings, API keys, secret keys). You should **not** store actual secrets in this file.
+
+2.  **Creating Your Local Configuration**:
+    *   For local development, copy `.env.example` to a new file named `.env.local`:
+        ```bash
+        cp .env.example .env.local
+        ```
+    *   Edit `.env.local` and fill in your actual local configuration values (e.g., your local database credentials, development API keys).
+    *   The `ai_trader/config.py` file is set up to load variables from `.env` first, and then override them with any variables found in `.env.local`.
+
+3.  **Gitignore**:
+    *   Files named `.env`, `.env.local`, and `.env.prod` are included in `.gitignore`. This is crucial to prevent accidental commits of your sensitive credentials and environment-specific settings. **Never commit these files to your repository.**
+
+4.  **Loading Order**:
+    *   When the application starts, `ai_trader/config.py` attempts to load environment variables in the following order:
+        1.  Actual environment variables set in your shell or deployment environment (these always take the highest precedence).
+        2.  Variables from a `.env.local` file (if it exists).
+        3.  Variables from a `.env` file (if it exists).
+    *   This allows you to have a base `.env` for common development settings and override them with `.env.local` for your specific machine, without modifying `.env` directly if it's shared among team members (though `.env.local` is generally preferred for individual local setups).
+
+5.  **Production Environments**:
+    *   In production, environment variables should be set directly in the deployment environment (e.g., using AWS Secrets Manager, HashiCorp Vault, Docker environment variables, Heroku config vars, etc.). Do **not** deploy `.env` files containing production secrets to your servers.
+
+Key variables you'll need to configure typically include:
+*   `DATABASE_URL` (or individual `POSTGRES_*` variables)
+*   `SECRET_KEY` (a strong, unique random string)
+*   API keys for any external services (e.g., `BINANCE_API_KEY`, `SOME_EXCHANGE_API_KEY`)
+
+Refer to `.env.example` for a full list of available variables and `ai_trader/config.py` to see how they are used.
 
 ## Basic Usage
 
