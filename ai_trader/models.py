@@ -177,7 +177,6 @@ class Asset(Base): # Asset model does not get SoftDeleteMixin
     asset_type = Column(String, nullable=True)
     created_at = Column(DateTime, default=func.now())
 
-    price_data = relationship("PriceData", back_populates="asset", passive_deletes=True)
     signals = relationship("Signal", back_populates="asset", passive_deletes=True)
     orders = relationship("Order", back_populates="asset", passive_deletes=True)
 
@@ -214,27 +213,23 @@ class Strategy(SoftDeleteMixin, Base):
         return f"<Strategy(id={self.id}, name='{self.name}')>"
 
 
-class PriceData(Base): # PriceData model does not get SoftDeleteMixin
+class PriceData(Base):
     __tablename__ = "price_data"
 
     id = Column(Integer, primary_key=True, index=True)
-    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False)
-    timestamp = Column(DateTime, nullable=False, index=True)
-    open = Column(Float, nullable=False)
-    high = Column(Float, nullable=False)
-    low = Column(Float, nullable=False)
-    close = Column(Float, nullable=False)
-    volume = Column(Float, nullable=False)
-    source = Column(String, nullable=False)
+    symbol = Column(String, index=True)
+    exchange = Column(String)
+    timestamp = Column(DateTime, index=True)
+    open = Column(Float)
+    high = Column(Float)
+    low = Column(Float)
+    close = Column(Float)
+    volume = Column(Float)
 
-    asset = relationship("Asset", back_populates="price_data")
-
-    __table_args__ = (
-        Index("idx_asset_timestamp_source", "asset_id", "timestamp", "source", unique=True),
-    )
+    __table_args__ = (UniqueConstraint('symbol', 'timestamp', name='_symbol_time_uc'),)
 
     def __repr__(self):
-        return f"<PriceData(asset_id={self.asset_id}, timestamp='{self.timestamp}', close={self.close})>"
+        return f"<PriceData(symbol='{self.symbol}', timestamp='{self.timestamp}', close={self.close})>"
 
 
 class Signal(SoftDeleteMixin, Base): # Added SoftDeleteMixin
