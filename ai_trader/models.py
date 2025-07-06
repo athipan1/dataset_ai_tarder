@@ -493,6 +493,47 @@ class AuditLog(Base):
         )
 
 
+
+# --- Features Model ---
+
+class Features(Base):
+    __tablename__ = "features"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False)
+    timestamp = Column(DateTime, nullable=False) # This should match a PriceData timestamp for a given asset
+
+    # Technical Indicators
+    rsi_14 = Column(Float, nullable=True)
+    sma_20 = Column(Float, nullable=True)
+    sma_50 = Column(Float, nullable=True)
+    ema_20 = Column(Float, nullable=True)
+    ema_50 = Column(Float, nullable=True)
+    macd_line = Column(Float, nullable=True)    # MACD line (e.g., 12,26,9)
+    macd_signal = Column(Float, nullable=True)   # MACD signal line (e.g., 12,26,9)
+    macd_hist = Column(Float, nullable=True)     # MACD histogram (e.g., 12,26,9)
+    atr_14 = Column(Float, nullable=True)        # Average True Range (e.g., 14)
+    bb_upperband = Column(Float, nullable=True)  # Bollinger Upper Band
+    bb_middleband = Column(Float, nullable=True) # Bollinger Middle Band (typically SMA20)
+    bb_lowerband = Column(Float, nullable=True)  # Bollinger Lower Band
+    # Add other indicators as needed, e.g.:
+    # adx_14 = Column(Float, nullable=True)
+    # cci_20 = Column(Float, nullable=True)
+    # stoch_k = Column(Float, nullable=True)
+    # stoch_d = Column(Float, nullable=True)
+
+    asset = relationship("Asset") # Relationship to Asset model
+
+    # Unique constraint for asset_id and timestamp to ensure one feature set per candle
+    __table_args__ = (
+        UniqueConstraint("asset_id", "timestamp", name="uq_feature_asset_timestamp"),
+        Index("idx_feature_asset_timestamp", "asset_id", "timestamp"), # Index for faster lookups
+    )
+
+    def __repr__(self):
+        return f"<Features(asset_id={self.asset_id}, timestamp='{self.timestamp}')>"
+
+
 # Example of how to create the tables in a database (e.g., SQLite for local dev)
 # This __main__ block should ideally not be run directly if using Alembic.
 # It's here for illustrative purposes or very basic, non-Alembic setups.
@@ -523,6 +564,7 @@ __all__ = [
     "Asset",
     "Strategy",
     "PriceData",
+    "Features", # Added Features model
     "Signal",
     "Order",
     "BacktestResult",
@@ -531,7 +573,7 @@ __all__ = [
     "UserBehaviorLog",
     "TradeAnalytics",
     "MarketEvent",
-    "AuditLog", # Added AuditLog to __all__
+    "AuditLog",
     "SignalType",
     "OrderStatus",
     "OrderType",

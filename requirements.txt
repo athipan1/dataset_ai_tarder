@@ -7,3 +7,8 @@ python-dotenv # For managing environment variables
 black
 isort
 Faker
+pandas
+pandas-ta
+yfinance
+python-binance
+setuptools
