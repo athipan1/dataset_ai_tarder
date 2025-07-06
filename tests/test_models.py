@@ -443,7 +443,7 @@ def test_asset_deletion_cascades(db_session, test_asset, test_price_data, test_s
 
     # Orders linked to this asset will be hard-deleted by DB's ON DELETE CASCADE
     # (and subsequently, Trades linked to those Orders will also be hard-deleted by DB cascade)
-    assert db_session.get(Order, test_order.id) is None
+    assert db_session.get(Order, order_id) is None # Use the stored order_id
 
 
 # --- Tests for Soft Delete Functionality ---
