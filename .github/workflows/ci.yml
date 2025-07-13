@@ -54,7 +54,7 @@ jobs:
           # DATABASE_URL: "postgresql://test_ci_user:test_ci_password@localhost:5432/ai_trader_ci_test_db"
           # Add other env vars required by your app_settings for db connection here
           SECRET_KEY: "dummy_secret_for_ci_migrations" # If your config setup needs it
-        run: python scripts/upgrade_db.py
+        run: python scripts/db/upgrade_db.py
 
       - name: Test with pytest
         env:
