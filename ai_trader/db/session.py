@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 # Import settings from the centralized config file
-from ai_trader.config import settings # Updated import
+from ai_trader.config import settings  # Updated import
 
 # DATABASE_URL is now sourced from settings
 DATABASE_URL = settings.DATABASE_URL

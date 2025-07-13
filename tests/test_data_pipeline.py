@@ -1,18 +1,23 @@
-import unittest
-from unittest.mock import patch, MagicMock
-import pandas as pd
-import numpy as np # For NaN comparison if needed, and for creating test data
-from datetime import datetime
 import os
 import sys
+import unittest
+from datetime import datetime
+from unittest.mock import MagicMock, patch
+
+import numpy as np  # For NaN comparison if needed, and for creating test data
+import pandas as pd
 
 # Add project root to Python path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from ai_trader.data_pipeline import calculate_features, get_price_data, save_features_to_db
-from ai_trader.models import Asset, PriceData, Features # Assuming these are needed for context or deeper tests
+from ai_trader.services.data_pipeline import (calculate_features,
+                                              get_price_data,
+                                              save_features_to_db)
+from ai_trader.models import (  # Assuming these are needed for context or deeper tests
+    Asset, Features, PriceData)
+
 
 class TestDataPipeline(unittest.TestCase):
 
@@ -83,7 +88,7 @@ class TestDataPipeline(unittest.TestCase):
         self.assertIn('timestamp', features_df.columns)
 
 
-    @patch('ai_trader.data_pipeline.SessionLocal')
+    @patch('ai_trader.services.data_pipeline.SessionLocal')
     def test_get_price_data(self, mock_session_local):
         """Test fetching price data from the database."""
         mock_session = MagicMock()

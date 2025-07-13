@@ -1,19 +1,22 @@
 import os
 import re
+
 import pytest
-from sqlalchemy import create_engine, inspect as sqlalchemy_inspect, MetaData
-from alembic.config import Config
 from alembic import command
-from ai_trader.models import Base  # Assuming Base is your declarative base
+from alembic.config import Config
+from sqlalchemy import MetaData, create_engine
+from sqlalchemy import inspect as sqlalchemy_inspect
+
 from ai_trader.config import settings
+from ai_trader.models import Base  # Assuming Base is your declarative base
 
 # Define the path to your alembic.ini and versions directory
 ALEMBIC_INI_PATH = os.path.join(os.path.dirname(__file__), '..', 'alembic.ini')
-VERSIONS_DIR_PATH = os.path.join(os.path.dirname(__file__), '..', 'alembic', 'versions')
+VERSIONS_DIR_PATH = os.path.join(os.path.dirname(__file__), '..', 'ai_trader', 'db', 'migrations', 'versions')
 
 # Ensure the alembic.ini path is correct for Config
 alembic_cfg = Config(ALEMBIC_INI_PATH)
-alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), '..', 'alembic'))
+alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), '..', 'ai_trader', 'db', 'migrations'))
 
 
 @pytest.fixture(scope="session")
