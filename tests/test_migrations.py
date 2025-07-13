@@ -1,19 +1,24 @@
 import os
 import re
+
 import pytest
-from sqlalchemy import create_engine, inspect as sqlalchemy_inspect, MetaData
-from alembic.config import Config
-from alembic import command
-from ai_trader.models import Base  # Assuming Base is your declarative base
+from sqlalchemy import MetaData, create_engine
+from sqlalchemy import inspect as sqlalchemy_inspect
+
 from ai_trader.config import settings
+from ai_trader.models import Base  # Assuming Base is your declarative base
+from alembic import command
+from alembic.config import Config
 
 # Define the path to your alembic.ini and versions directory
-ALEMBIC_INI_PATH = os.path.join(os.path.dirname(__file__), '..', 'alembic.ini')
-VERSIONS_DIR_PATH = os.path.join(os.path.dirname(__file__), '..', 'alembic', 'versions')
+ALEMBIC_INI_PATH = os.path.join(os.path.dirname(__file__), "..", "alembic.ini")
+VERSIONS_DIR_PATH = os.path.join(os.path.dirname(__file__), "..", "alembic", "versions")
 
 # Ensure the alembic.ini path is correct for Config
 alembic_cfg = Config(ALEMBIC_INI_PATH)
-alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), '..', 'alembic'))
+alembic_cfg.set_main_option(
+    "script_location", os.path.join(os.path.dirname(__file__), "..", "alembic")
+)
 
 
 @pytest.fixture(scope="session")
@@ -23,21 +28,23 @@ def db_engine():
     Applies all migrations to this engine.
     """
     # Use a shared, named in-memory SQLite database.
-    test_db_url = "sqlite:///file:memdb_test_migrations?mode=memory&cache=shared&uri=true"
+    test_db_url = (
+        "sqlite:///file:memdb_test_migrations?mode=memory&cache=shared&uri=true"
+    )
     engine = create_engine(test_db_url)
 
     # Pass the engine to env.py via config attributes for direct use by Alembic.
-    alembic_cfg.attributes['connection_engine_for_tests'] = engine
+    alembic_cfg.attributes["connection_engine_for_tests"] = engine
     # No longer set sqlalchemy.url directly on alembic_cfg, env.py will use the passed engine.
 
     # Stamp the database with the 'head' revision to initialize it
     command.upgrade(alembic_cfg, "head")
 
-    yield engine # The test will use this engine for reflection
+    yield engine  # The test will use this engine for reflection
 
     # Clean up the attribute
-    if 'connection_engine_for_tests' in alembic_cfg.attributes:
-        del alembic_cfg.attributes['connection_engine_for_tests']
+    if "connection_engine_for_tests" in alembic_cfg.attributes:
+        del alembic_cfg.attributes["connection_engine_for_tests"]
     engine.dispose()
 
 
@@ -60,30 +67,35 @@ def test_schema_consistency(db_engine):
 
     # Add alembic_version to model_tables as it's expected in the migrated DB
     # but not part of the core model definition.
-    model_tables_with_alembic = model_tables.union({'alembic_version'})
+    model_tables_with_alembic = model_tables.union({"alembic_version"})
 
-
-    assert migrated_tables == model_tables_with_alembic, \
-        f"Table mismatch:\nIn DB but not in models: {migrated_tables - model_tables_with_alembic}\nIn models but not in DB: {model_tables_with_alembic - migrated_tables}"
+    assert (
+        migrated_tables == model_tables_with_alembic
+    ), f"Table mismatch:\nIn DB but not in models: {migrated_tables - model_tables_with_alembic}\nIn models but not in DB: {model_tables_with_alembic - migrated_tables}"
 
     # Compare columns and types within each table
     inspector = sqlalchemy_inspect(db_engine)
-    for table_name in model_tables: # Iterate over model tables to ensure all are checked
-        if table_name == 'alembic_version':
-            continue # Skip alembic_version table for detailed column comparison
+    for (
+        table_name
+    ) in model_tables:  # Iterate over model tables to ensure all are checked
+        if table_name == "alembic_version":
+            continue  # Skip alembic_version table for detailed column comparison
 
         # print(f"Comparing table: {table_name}")
         model_table = model_metadata.tables[table_name]
 
         # Check if table exists in migrated DB (already asserted above, but good for safety)
-        assert table_name in migrated_metadata.tables, f"Table {table_name} not found in migrated database."
+        assert (
+            table_name in migrated_metadata.tables
+        ), f"Table {table_name} not found in migrated database."
 
-        db_columns = {col['name']: col for col in inspector.get_columns(table_name)}
+        db_columns = {col["name"]: col for col in inspector.get_columns(table_name)}
 
         for model_column in model_table.columns:
             # print(f"  Comparing column: {model_column.name}")
-            assert model_column.name in db_columns, \
-                f"Column '{model_column.name}' in model '{table_name}' not found in migrated database."
+            assert (
+                model_column.name in db_columns
+            ), f"Column '{model_column.name}' in model '{table_name}' not found in migrated database."
 
             db_col_info = db_columns[model_column.name]
 
@@ -91,38 +103,55 @@ def test_schema_consistency(db_engine):
             # This is a simplified check; more robust comparison might be needed
             # For example, String(255) vs VARCHAR(255)
             model_col_type_str = str(model_column.type).upper()
-            db_col_type_str = str(db_col_info['type']).upper()
+            db_col_type_str = str(db_col_info["type"]).upper()
 
             # Normalize some common type differences between SQLAlchemy definition and SQLite reflection
-            if "VARCHAR" in model_col_type_str and "VARCHAR" not in db_col_type_str and "CHAR" in db_col_type_str:
-                 # e.g. String vs CHAR in SQLite for variable length strings
-                 pass # Allow this difference
-            elif model_col_type_str == "TEXT" and "CLOB" in db_col_type_str: # TEXT vs CLOB
-                 pass
-            elif model_col_type_str == "DATETIME" and "TIMESTAMP" in db_col_type_str: # DATETIME vs TIMESTAMP
-                 pass
-            elif model_col_type_str == "BOOLEAN" and "INTEGER" in db_col_type_str: # BOOLEAN vs INTEGER(0/1) in SQLite
-                 pass
-            elif model_col_type_str == "JSON" and ("TEXT" in db_col_type_str or "JSON" in db_col_type_str): # JSON vs TEXT in SQLite
-                 pass
+            if (
+                "VARCHAR" in model_col_type_str
+                and "VARCHAR" not in db_col_type_str
+                and "CHAR" in db_col_type_str
+            ):
+                # e.g. String vs CHAR in SQLite for variable length strings
+                pass  # Allow this difference
+            elif (
+                model_col_type_str == "TEXT" and "CLOB" in db_col_type_str
+            ):  # TEXT vs CLOB
+                pass
+            elif (
+                model_col_type_str == "DATETIME" and "TIMESTAMP" in db_col_type_str
+            ):  # DATETIME vs TIMESTAMP
+                pass
+            elif (
+                model_col_type_str == "BOOLEAN" and "INTEGER" in db_col_type_str
+            ):  # BOOLEAN vs INTEGER(0/1) in SQLite
+                pass
+            elif model_col_type_str == "JSON" and (
+                "TEXT" in db_col_type_str or "JSON" in db_col_type_str
+            ):  # JSON vs TEXT in SQLite
+                pass
             elif model_col_type_str != db_col_type_str:
-                assert model_col_type_str == db_col_type_str, \
-                    f"Type mismatch for column '{model_column.name}' in table '{table_name}': Model is '{model_col_type_str}', DB is '{db_col_type_str}'"
+                assert (
+                    model_col_type_str == db_col_type_str
+                ), f"Type mismatch for column '{model_column.name}' in table '{table_name}': Model is '{model_col_type_str}', DB is '{db_col_type_str}'"
 
             # Nullable comparison
-            assert model_column.nullable == db_col_info['nullable'], \
-                f"Nullable mismatch for column '{model_column.name}' in table '{table_name}': Model is '{model_column.nullable}', DB is '{db_col_info['nullable']}'"
+            assert (
+                model_column.nullable == db_col_info["nullable"]
+            ), f"Nullable mismatch for column '{model_column.name}' in table '{table_name}': Model is '{model_column.nullable}', DB is '{db_col_info['nullable']}'"
 
         # Check for columns in DB not in model (excluding primary key if it's autoincrement and not explicitly named in model, though usually it is)
         model_column_names = {col.name for col in model_table.columns}
         db_only_columns = set(db_columns.keys()) - model_column_names
-        assert not db_only_columns, \
-            f"Columns in DB table '{table_name}' but not in model: {db_only_columns}"
+        assert (
+            not db_only_columns
+        ), f"Columns in DB table '{table_name}' but not in model: {db_only_columns}"
 
 
 def get_migration_files():
     """Helper to get all Python migration files."""
-    versions_path = alembic_cfg.get_main_option('version_locations').split(':')[0] # Assuming single location
+    versions_path = alembic_cfg.get_main_option("version_locations").split(":")[
+        0
+    ]  # Assuming single location
     if not os.path.isabs(versions_path):
         versions_path = os.path.join(os.path.dirname(ALEMBIC_INI_PATH), versions_path)
 
@@ -131,6 +160,7 @@ def get_migration_files():
         if fname.endswith(".py") and fname != "__init__.py":
             files.append(os.path.join(versions_path, fname))
     return files
+
 
 def test_no_raw_create_table_in_migrations():
     """
@@ -145,17 +175,19 @@ def test_no_raw_create_table_in_migrations():
     for fpath in migration_files:
         # Skip initial table creation migration if it's explicitly allowed or identified
         # For example, if the first migration is known to set up the baseline.
-        if "create_initial_tables" in os.path.basename(fpath) or \
-           "create_tables" in os.path.basename(fpath) or \
-           "init" in os.path.basename(fpath): # Common names for initial migrations
+        if (
+            "create_initial_tables" in os.path.basename(fpath)
+            or "create_tables" in os.path.basename(fpath)
+            or "init" in os.path.basename(fpath)
+        ):  # Common names for initial migrations
             # For initial migrations, we are more interested that they use op.create_table
             # rather than strictly banning "CREATE TABLE" if it's somehow part of a comment or complex setup.
             # The schema consistency test is a better guard for overall correctness of initial setup.
             # A more advanced check could parse the Python AST to ensure only `op.create_table` is used.
             # For now, we'll be more lenient on specific initial migration files for this particular test.
-            continue # Skip strict check for identified initial migration files
+            continue  # Skip strict check for identified initial migration files
 
-        with open(fpath, 'r') as f:
+        with open(fpath, "r") as f:
             for line_number, line in enumerate(f, 1):
                 stripped_line = line.strip()
                 if not stripped_line or stripped_line.startswith("#"):
@@ -163,16 +195,25 @@ def test_no_raw_create_table_in_migrations():
 
                 # Check for "CREATE TABLE" not as part of "op.create_table"
                 # This is a heuristic. A more robust check might involve AST parsing.
-                if "CREATE TABLE" in stripped_line and "op.create_table" not in stripped_line:
+                if (
+                    "CREATE TABLE" in stripped_line
+                    and "op.create_table" not in stripped_line
+                ):
                     # Further check to reduce false positives from strings or complex comments:
                     # Ensure it's not clearly within a multi-line string or a complex assignment
                     # This is still a heuristic.
-                    if not (stripped_line.startswith("'''") or stripped_line.startswith('"""') or \
-                            stripped_line.endswith("'''") or stripped_line.endswith('"""') or \
-                            re.search(r"=\s*['\"]", stripped_line) # e.g. sql = "CREATE TABLE..."
-                           ):
-                        assert False, \
-                            f"Potential raw 'CREATE TABLE' statement found in migration file: {fpath} at line {line_number}: '{line.strip()}'. Please use SQLAlchemy models and Alembic's autogenerate (op.create_table)."
+                    if not (
+                        stripped_line.startswith("'''")
+                        or stripped_line.startswith('"""')
+                        or stripped_line.endswith("'''")
+                        or stripped_line.endswith('"""')
+                        or re.search(
+                            r"=\s*['\"]", stripped_line
+                        )  # e.g. sql = "CREATE TABLE..."
+                    ):
+                        assert (
+                            False
+                        ), f"Potential raw 'CREATE TABLE' statement found in migration file: {fpath} at line {line_number}: '{line.strip()}'. Please use SQLAlchemy models and Alembic's autogenerate (op.create_table)."
 
 
 def _is_function_empty(func_content_lines: list[str]) -> bool:
@@ -186,14 +227,18 @@ def _is_function_empty(func_content_lines: list[str]) -> bool:
             continue
         if stripped_line == "pass":
             continue
-        if stripped_line.startswith("'''") or stripped_line.startswith('"""'): # Start of docstring
+        if stripped_line.startswith("'''") or stripped_line.startswith(
+            '"""'
+        ):  # Start of docstring
             # This is a simple check; multi-line docstrings might need more robust parsing
             # or assume docstring is first and then pass.
-            if func_content_lines.index(line) == 0 and \
-               any(l.strip() == "pass" for l in func_content_lines[func_content_lines.index(line)+1:]):
-                 # If it's a docstring at the start and 'pass' is found later, consider it part of an "empty" structure
+            if func_content_lines.index(line) == 0 and any(
+                l.strip() == "pass"
+                for l in func_content_lines[func_content_lines.index(line) + 1 :]
+            ):
+                # If it's a docstring at the start and 'pass' is found later, consider it part of an "empty" structure
                 continue
-        return False # Found a non-comment, non-pass, non-docstring line
+        return False  # Found a non-comment, non-pass, non-docstring line
     return True
 
 
@@ -206,26 +251,35 @@ def test_migrations_are_not_empty():
     migration_files = get_migration_files()
 
     for fpath in migration_files:
-        with open(fpath, 'r') as f:
+        with open(fpath, "r") as f:
             content = f.read()
 
-        is_initial_migration = "down_revision: Union[str, Sequence[str], None] = None" in content or \
-                               "down_revision = None" in content # Simpler check for generated files
+        is_initial_migration = (
+            "down_revision: Union[str, Sequence[str], None] = None" in content
+            or "down_revision = None" in content
+        )  # Simpler check for generated files
 
         # Don't check the very first migration file if it's truly empty as a placeholder
         # (though usually initial migrations have create_table calls).
         # The main concern is non-initial migrations being empty.
-        if is_initial_migration and "create_initial_tables" not in os.path.basename(fpath):
-             # If it's an initial migration but not the one named "create_initial_tables",
-             # it might be a placeholder before any models were added. We can be lenient here.
-             # The schema consistency test will ultimately check if the DB is correctly formed.
-             # print(f"Skipping emptiness check for initial-like migration: {fpath}")
-             pass # Continue to next file if it's a potentially valid empty initial revision
-
+        if is_initial_migration and "create_initial_tables" not in os.path.basename(
+            fpath
+        ):
+            # If it's an initial migration but not the one named "create_initial_tables",
+            # it might be a placeholder before any models were added. We can be lenient here.
+            # The schema consistency test will ultimately check if the DB is correctly formed.
+            # print(f"Skipping emptiness check for initial-like migration: {fpath}")
+            pass  # Continue to next file if it's a potentially valid empty initial revision
 
         # Extract content of upgrade() and downgrade() functions
-        upgrade_match = re.search(r"def\s+upgrade\(\s*\)\s*->\s*None\s*:(.*?)def\s+downgrade\(\s*\)\s*->\s*None\s*:", content, re.DOTALL)
-        downgrade_func_match = re.search(r"def\s+downgrade\(\s*\)\s*->\s*None\s*:(.*)", content, re.DOTALL)
+        upgrade_match = re.search(
+            r"def\s+upgrade\(\s*\)\s*->\s*None\s*:(.*?)def\s+downgrade\(\s*\)\s*->\s*None\s*:",
+            content,
+            re.DOTALL,
+        )
+        downgrade_func_match = re.search(
+            r"def\s+downgrade\(\s*\)\s*->\s*None\s*:(.*)", content, re.DOTALL
+        )
 
         upgrade_lines = []
         downgrade_lines = []
@@ -236,7 +290,9 @@ def test_migrations_are_not_empty():
             actual_downgrade_def = "def downgrade() -> None:"
             if actual_downgrade_def in upgrade_content:
                 upgrade_content = upgrade_content.split(actual_downgrade_def)[0]
-            upgrade_lines = [line for line in upgrade_content.splitlines() if line.strip()]
+            upgrade_lines = [
+                line for line in upgrade_content.splitlines() if line.strip()
+            ]
 
         if downgrade_func_match:
             # Get content after "def downgrade():" up to the end of the file or next top-level def/class
@@ -245,19 +301,25 @@ def test_migrations_are_not_empty():
 
             # Only take lines until another top-level definition or end of relevant block
             for line in downgrade_lines_raw:
-                if re.match(r"^(def|class)\s+", line.lstrip()): # Heuristic for end of function
+                if re.match(
+                    r"^(def|class)\s+", line.lstrip()
+                ):  # Heuristic for end of function
                     break
-                if line.strip(): # Add non-empty lines
+                if line.strip():  # Add non-empty lines
                     downgrade_lines.append(line)
-
 
         # If parsing failed to isolate functions, log it but don't fail the test here,
         # as the primary goal is to check for "pass"-only functions.
-        if not upgrade_lines and not is_initial_migration: # Only warn if not initial, as initial might be empty.
-             print(f"Warning: Could not parse upgrade function content reliably in {fpath}")
+        if (
+            not upgrade_lines and not is_initial_migration
+        ):  # Only warn if not initial, as initial might be empty.
+            print(
+                f"Warning: Could not parse upgrade function content reliably in {fpath}"
+            )
         if not downgrade_lines and not is_initial_migration:
-             print(f"Warning: Could not parse downgrade function content reliably in {fpath}")
-
+            print(
+                f"Warning: Could not parse downgrade function content reliably in {fpath}"
+            )
 
         upgrade_is_empty = _is_function_empty(upgrade_lines)
         downgrade_is_empty = _is_function_empty(downgrade_lines)
@@ -268,8 +330,11 @@ def test_migrations_are_not_empty():
             # However, if it has a down_revision (i.e., it's not the very first),
             # then being totally empty is suspicious.
             if not is_initial_migration:
-                assert False, f"Migration file {fpath} has effectively empty upgrade and downgrade functions. This might indicate an issue with generation or manual editing."
+                assert (
+                    False
+                ), f"Migration file {fpath} has effectively empty upgrade and downgrade functions. This might indicate an issue with generation or manual editing."
             # else: it's an initial migration and it's empty. This can be valid for a root migration with no ops.
+
 
 # Future test ideas:
 # - Check for specific naming conventions in migration files.

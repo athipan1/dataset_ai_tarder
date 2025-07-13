@@ -1,16 +1,20 @@
 import datetime
-from datetime import timezone # For datetime.UTC
 import enum
+from datetime import timezone  # For datetime.UTC
+
 from sqlalchemy import event
 from sqlalchemy.orm import Session, attributes
 from sqlalchemy.orm.exc import UnmappedColumnError
 
-from ai_trader.models import AuditLog, User, Asset, Strategy, Trade # Add other models as needed
 from ai_trader.auth_context import get_current_user_id
+from ai_trader.models import (Asset, AuditLog,  # Add other models as needed
+                              Strategy, Trade, User)
+
 # Removed SessionLocal import to break circular dependency.
 # Session acquisition should rely on Session.object_session(target)
 # or Session(bind=connection_for_event) as implemented in get_auditing_session
 # (or the existing _get_session if that's the current version in file).
+
 
 def _get_session(target_instance, connection=None):
     """Gets or creates a session for logging."""
@@ -58,11 +62,10 @@ def _get_session(target_instance, connection=None):
         state = attributes.instance_state(target_instance)
         if state.session_id:
             session = state.session
-        elif connection: # Fallback to using the connection if available
-             # This is more for "before_delete" where the object might be expunged
-             # but the connection is still valid for the transaction.
+        elif connection:  # Fallback to using the connection if available
+            # This is more for "before_delete" where the object might be expunged
+            # but the connection is still valid for the transaction.
             session = Session(bind=connection)
-
 
     if not session:
         # As a last resort if no session is found, we might need to create one.
@@ -92,20 +95,25 @@ def _serialize_value(value):
     # For most basic types (str, int, float, bool, list, dict), it's fine.
     return value
 
+
 def log_insert(mapper, connection, target):
     """Logs INSERT operations."""
     session = _get_session(target, connection)
     if not session:
-        print(f"AUDIT_LOG_ERROR: No session for INSERT on {target.__tablename__} {target.id if hasattr(target, 'id') else ''}")
+        print(
+            f"AUDIT_LOG_ERROR: No session for INSERT on {target.__tablename__} {target.id if hasattr(target, 'id') else ''}"
+        )
         return
 
     # Ensure target.id is available after insert (it should be post-flush)
     # The "after_insert" event guarantees the PK is populated.
-    record_id = getattr(target, 'id', None)
+    record_id = getattr(target, "id", None)
     if record_id is None:
         # This should not happen for "after_insert" if 'id' is the PK.
         # If composite PK or different PK name, this needs adjustment.
-        print(f"AUDIT_LOG_ERROR: No record_id for INSERT on {target.__tablename__}. PK might not be 'id' or not populated.")
+        print(
+            f"AUDIT_LOG_ERROR: No record_id for INSERT on {target.__tablename__}. PK might not be 'id' or not populated."
+        )
         return
 
     changes = {}
@@ -115,9 +123,8 @@ def log_insert(mapper, connection, target):
         except AttributeError:
             # This might happen for some internal attributes or unmapped ones.
             pass
-        except UnmappedColumnError: # Should not happen with column_attrs
+        except UnmappedColumnError:  # Should not happen with column_attrs
             pass
-
 
     log_entry = AuditLog(
         table_name=target.__tablename__,
@@ -125,21 +132,26 @@ def log_insert(mapper, connection, target):
         action="INSERT",
         changed_by=get_current_user_id(),
         changes=changes,
-        timestamp=datetime.datetime.now(timezone.utc)
+        timestamp=datetime.datetime.now(timezone.utc),
     )
     session.add(log_entry)
     # The session that `target` is part of will handle flushing this log_entry.
+
 
 def log_update(mapper, connection, target):
     """Logs UPDATE operations."""
     session = _get_session(target, connection)
     if not session:
-        print(f"AUDIT_LOG_ERROR: No session for UPDATE on {target.__tablename__} {target.id}")
+        print(
+            f"AUDIT_LOG_ERROR: No session for UPDATE on {target.__tablename__} {target.id}"
+        )
         return
 
-    record_id = getattr(target, 'id', None)
+    record_id = getattr(target, "id", None)
     if record_id is None:
-        print(f"AUDIT_LOG_ERROR: No record_id for UPDATE on {target.__tablename__}. PK might not be 'id'.")
+        print(
+            f"AUDIT_LOG_ERROR: No record_id for UPDATE on {target.__tablename__}. PK might not be 'id'."
+        )
         return
 
     changes = {}
@@ -150,10 +162,10 @@ def log_update(mapper, connection, target):
             new_value = history.added[0] if history.added else None
             changes[attr.key] = {
                 "old": _serialize_value(old_value),
-                "new": _serialize_value(new_value)
+                "new": _serialize_value(new_value),
             }
 
-    if not changes: # No auditable changes detected
+    if not changes:  # No auditable changes detected
         return
 
     log_entry = AuditLog(
@@ -162,9 +174,10 @@ def log_update(mapper, connection, target):
         action="UPDATE",
         changed_by=get_current_user_id(),
         changes=changes,
-        timestamp=datetime.datetime.now(timezone.utc)
+        timestamp=datetime.datetime.now(timezone.utc),
     )
     session.add(log_entry)
+
 
 def log_delete(mapper, connection, target):
     """Logs DELETE operations."""
@@ -176,16 +189,19 @@ def log_delete(mapper, connection, target):
         if connection:
             session = Session(bind=connection)
         else:
-            print(f"AUDIT_LOG_ERROR: No session or connection for DELETE on {target.__tablename__} {target.id}")
+            print(
+                f"AUDIT_LOG_ERROR: No session or connection for DELETE on {target.__tablename__} {target.id}"
+            )
             return
 
-
-    record_id = getattr(target, 'id', None)
+    record_id = getattr(target, "id", None)
     if record_id is None:
-        print(f"AUDIT_LOG_ERROR: No record_id for DELETE on {target.__tablename__}. PK might not be 'id'.")
+        print(
+            f"AUDIT_LOG_ERROR: No record_id for DELETE on {target.__tablename__}. PK might not be 'id'."
+        )
         return
 
-    changes = {} # Store the state of the record before deletion
+    changes = {}  # Store the state of the record before deletion
     for attr in mapper.column_attrs:
         try:
             changes[attr.key] = _serialize_value(getattr(target, attr.key))
@@ -194,22 +210,21 @@ def log_delete(mapper, connection, target):
         except UnmappedColumnError:
             pass
 
-
     log_entry = AuditLog(
         table_name=target.__tablename__,
         record_id=record_id,
         action="DELETE",
         changed_by=get_current_user_id(),
-        changes=changes, # Log current values as "old" values effectively
-        timestamp=datetime.datetime.now(timezone.utc)
+        changes=changes,  # Log current values as "old" values effectively
+        timestamp=datetime.datetime.now(timezone.utc),
     )
     session.add(log_entry)
-    if session.bind == connection : # If we created a temp session for delete
+    if session.bind == connection:  # If we created a temp session for delete
         try:
-            session.flush() # Ensure the log is written within the same transaction
+            session.flush()  # Ensure the log is written within the same transaction
         except Exception as e:
             print(f"AUDIT_LOG_ERROR: Failed to flush audit log for DELETE: {e}")
-            session.rollback() # Rollback this temp session part
+            session.rollback()  # Rollback this temp session part
         finally:
             # Do not close if it's using an externally managed connection.
             # session.close() # Only if we fully manage this session.
@@ -220,7 +235,7 @@ def log_delete(mapper, connection, target):
 
 def register_audit_listeners():
     """Registers audit logging event listeners for specified models."""
-    models_to_audit = [User, Asset, Strategy, Trade] # Extend this list as needed
+    models_to_audit = [User, Asset, Strategy, Trade]  # Extend this list as needed
 
     for model_class in models_to_audit:
         event.listen(model_class, "after_insert", log_insert)
