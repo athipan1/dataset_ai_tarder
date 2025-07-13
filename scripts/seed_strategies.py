@@ -1,24 +1,33 @@
 import argparse
 import logging
-from faker import Faker
 import random
 
+from faker import Faker
+
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Adjust imports to match project structure
 try:
-    from ai_trader.models import User, Strategy
     from ai_trader.db.session import SessionLocal
+    from ai_trader.models import Strategy, User
 except ImportError:
-    logger.error("Failed to import necessary modules. Ensure PYTHONPATH or script execution context is correct.")
-    logger.info("Attempting relative imports for common project structures (less ideal).")
-    import sys
+    logger.error(
+        "Failed to import necessary modules. Ensure PYTHONPATH or script execution context is correct."
+    )
+    logger.info(
+        "Attempting relative imports for common project structures (less ideal)."
+    )
     import os
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from ai_trader.models import User, Strategy
+    import sys
+
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     from ai_trader.db.session import SessionLocal
+    from ai_trader.models import Strategy, User
+
 
 def seed_strategies(session, strategies_per_user: int = 2):
     """
@@ -31,18 +40,25 @@ def seed_strategies(session, strategies_per_user: int = 2):
 
     users = session.query(User).all()
     if not users:
-        logger.warning("No users found in the database. Please seed users first (e.g., run seed_users.py). Strategies will not be created.")
+        logger.warning(
+            "No users found in the database. Please seed users first (e.g., run seed_users.py). Strategies will not be created."
+        )
         return
 
     for user in users:
         user_strategies_created = 0
         # Check existing strategy names for this user to avoid duplicates if script is run multiple times
         existing_strategy_names_for_user = {
-            s.name for s in session.query(Strategy.name).filter(Strategy.user_id == user.id).all()
+            s.name
+            for s in session.query(Strategy.name)
+            .filter(Strategy.user_id == user.id)
+            .all()
         }
 
         for i in range(strategies_per_user):
-            strategy_name_base = f"{fake.word().capitalize()} {fake.word().capitalize()} Strategy"
+            strategy_name_base = (
+                f"{fake.word().capitalize()} {fake.word().capitalize()} Strategy"
+            )
             strategy_name = strategy_name_base
             # Ensure strategy name is unique for the user
             name_suffix_counter = 0
@@ -55,7 +71,7 @@ def seed_strategies(session, strategies_per_user: int = 2):
             parameters = {
                 "param1": fake.random_int(min=1, max=100),
                 "param2": round(random.uniform(0.1, 5.0), 2),
-                "mode": random.choice(["aggressive", "conservative", "balanced"])
+                "mode": random.choice(["aggressive", "conservative", "balanced"]),
             }
             # api_key might be nullable or not set for mock strategies
 
@@ -64,32 +80,42 @@ def seed_strategies(session, strategies_per_user: int = 2):
                 description=description,
                 model_version=model_version,
                 parameters=parameters,
-                user_id=user.id
+                user_id=user.id,
                 # created_at and updated_at usually have defaults
             )
             session.add(strategy)
-            existing_strategy_names_for_user.add(strategy_name) # Add to set for current user
+            existing_strategy_names_for_user.add(
+                strategy_name
+            )  # Add to set for current user
             strategies_created_count += 1
-            user_strategies_created +=1
-            logger.debug(f"Prepared strategy '{strategy_name}' for user '{user.username}'")
-        logger.info(f"Prepared {user_strategies_created} strategies for user ID {user.id} ({user.username}).")
-
+            user_strategies_created += 1
+            logger.debug(
+                f"Prepared strategy '{strategy_name}' for user '{user.username}'"
+            )
+        logger.info(
+            f"Prepared {user_strategies_created} strategies for user ID {user.id} ({user.username})."
+        )
 
     try:
         session.commit()
-        logger.info(f"Successfully seeded a total of {strategies_created_count} strategies across all users.")
+        logger.info(
+            f"Successfully seeded a total of {strategies_created_count} strategies across all users."
+        )
     except Exception as e:
         session.rollback()
         logger.error(f"Error seeding strategies: {e}", exc_info=True)
         logger.info("Rolled back any pending changes for strategy seeding.")
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Seed strategies into the database, associated with existing users.")
+    parser = argparse.ArgumentParser(
+        description="Seed strategies into the database, associated with existing users."
+    )
     parser.add_argument(
         "--strategies_per_user",
         type=int,
         default=2,
-        help="Number of mock strategies to create per user."
+        help="Number of mock strategies to create per user.",
     )
     args = parser.parse_args()
 

@@ -1,6 +1,7 @@
 import sqlalchemy
-from ai_trader.db.session import engine
+
 from ai_trader.config import settings
+from ai_trader.db.session import engine
 
 
 def main():

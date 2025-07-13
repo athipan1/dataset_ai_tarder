@@ -1,21 +1,30 @@
+from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import Optional
+
 from pydantic import BaseModel
-from contextlib import contextmanager
+
 
 class CurrentUser(BaseModel):
     """Pydantic model to represent the current user in context."""
+
     user_id: int
     username: str
     is_superuser: bool = False
     # Add other relevant fields like email, roles, permissions if needed
 
+
 # ContextVar to hold the current user object (or None)
-USER_CONTEXT: ContextVar[Optional[CurrentUser]] = ContextVar("user_context", default=None)
+USER_CONTEXT: ContextVar[Optional[CurrentUser]] = ContextVar(
+    "user_context", default=None
+)
 
 # Keep the old current_user_id for AuditLog compatibility for now,
 # but new code should prefer using USER_CONTEXT and CurrentUser object.
-current_user_id_context_var: ContextVar[Optional[int]] = ContextVar("current_user_id_context_var", default=None)
+current_user_id_context_var: ContextVar[Optional[int]] = ContextVar(
+    "current_user_id_context_var", default=None
+)
+
 
 @contextmanager
 def auth_context(user: Optional[CurrentUser]):
@@ -40,6 +49,7 @@ def auth_context(user: Optional[CurrentUser]):
         if token_id:
             current_user_id_context_var.reset(token_id)
 
+
 def get_current_user() -> CurrentUser:
     """
     Retrieves the current user from the context.
@@ -49,6 +59,7 @@ def get_current_user() -> CurrentUser:
     if user is None:
         raise LookupError("User not found in context. Ensure auth_context is used.")
     return user
+
 
 def get_current_user_or_none() -> Optional[CurrentUser]:
     """
@@ -60,6 +71,7 @@ def get_current_user_or_none() -> Optional[CurrentUser]:
 
 # --- Compatibility functions for existing AuditLog ---
 
+
 def set_current_user_id(user_id: Optional[int]) -> Token:
     """
     Sets the current user's ID in the dedicated legacy context.
@@ -69,6 +81,7 @@ def set_current_user_id(user_id: Optional[int]) -> Token:
     # that only have user_id. If a full CurrentUser object is available,
     # auth_context should be used, which also sets this.
     return current_user_id_context_var.set(user_id)
+
 
 def get_current_user_id() -> Optional[int]:
     """
@@ -81,6 +94,7 @@ def get_current_user_id() -> Optional[int]:
         return current_user_obj.user_id
     # Fallback to old context var
     return current_user_id_context_var.get()
+
 
 def reset_current_user_id(token: Token) -> None:
     """Resets the current_user_id_context_var using the provided token."""

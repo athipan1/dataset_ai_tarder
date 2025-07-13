@@ -1,7 +1,6 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
@@ -18,10 +17,11 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 import os
 import sys
+
 # Ensure the project root (containing the 'ai_trader' package) is in the path.
 # alembic.ini's prepend_sys_path = . also helps if alembic is run from project root.
 # The path from env.py (in alembic/env.py) to project root is one level up.
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -29,16 +29,32 @@ if PROJECT_ROOT not in sys.path:
 # This is crucial for Alembic autogenerate and for ensuring migrations have the correct context.
 # All models are now defined in ai_trader.models.py and use the Base from there.
 # Importing Base from ai_trader.models will make its metadata available.
-from ai_trader.models import Base, User, Asset, Strategy, PriceData, Signal, Order, BacktestResult, Trade, UserBehaviorLog, TradeAnalytics, MarketEvent, AuditLog  # noqa: E402, F401
+from ai_trader.models import AuditLog  # noqa: E402, F401
+from ai_trader.models import (
+    Asset,
+    BacktestResult,
+    Base,
+    MarketEvent,
+    Order,
+    PriceData,
+    Signal,
+    Strategy,
+    Trade,
+    TradeAnalytics,
+    User,
+    UserBehaviorLog,
+)
+
 target_metadata = Base.metadata
 
 # Import settings from the new config module
-from ai_trader.config import settings # noqa: E402
+from ai_trader.config import settings  # noqa: E402
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
 
 def get_url():
     """Helper function to get the database URL from settings."""
@@ -58,7 +74,7 @@ def run_migrations_offline() -> None:
 
     """
     # url = config.get_main_option("sqlalchemy.url") # Original line
-    url = get_url() # Use the new settings
+    url = get_url()  # Use the new settings
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -79,13 +95,13 @@ def run_migrations_online() -> None:
 
     """
     # Check if an engine is passed directly via config attributes (e.g., from tests)
-    connectable = config.attributes.get('connection_engine_for_tests')
+    connectable = config.attributes.get("connection_engine_for_tests")
 
     if connectable is None:
         # No direct engine passed, so configure one based on URL (normal CLI flow)
         db_url = config.get_main_option("sqlalchemy.url")
         if not db_url:
-            db_url = get_url() # Fallback to settings from ai_trader.config
+            db_url = get_url()  # Fallback to settings from ai_trader.config
 
         engine_config_dict = config.get_section(config.config_ini_section, {})
         engine_config_dict["sqlalchemy.url"] = db_url
@@ -102,7 +118,7 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            render_as_batch=True  # Enable batch mode for SQLite
+            render_as_batch=True,  # Enable batch mode for SQLite
         )
 
         with context.begin_transaction():

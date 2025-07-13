@@ -1,11 +1,10 @@
 import os
-import sqlalchemy
-from sqlalchemy import inspect
 
-import os
 import sqlalchemy
 from sqlalchemy import create_engine, inspect
+
 from ai_trader.config import settings
+
 
 def main():
     # Determine database URL, giving precedence to DATABASE_URL
@@ -14,7 +13,7 @@ def main():
     print("🚀 Starting database status check...")
     print(f"🔗 Connecting to database: {db_url}")
 
-    if not db_url or db_url.startswith('sqlite'):
+    if not db_url or db_url.startswith("sqlite"):
         print("❌ Error: PostgreSQL database URL is not configured.")
         print("  Please set the `DATABASE_URL` environment variable.")
         return
@@ -50,11 +49,14 @@ def main():
     except Exception as e:
         print(f"❌ Connection failed: {e}")
         print("\n🤔 Suggestions:")
-        print("  - Verify that the `DATABASE_URL` environment variable is set correctly.")
+        print(
+            "  - Verify that the `DATABASE_URL` environment variable is set correctly."
+        )
         print("  - Check if the database server is running and accessible.")
         print("  - Ensure that the necessary database drivers are installed.")
 
     print("\n🏁 Database status check finished.")
+
 
 if __name__ == "__main__":
     main()

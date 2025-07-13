@@ -1,8 +1,9 @@
 from sqlalchemy.orm import Session
 
+from ai_trader.db.session import SessionLocal, engine
+
 # Base is now imported from ai_trader.models where all models are defined
-from ai_trader.models import Base
-from ai_trader.db.session import engine, SessionLocal
+
 # Importing specific models is only needed if directly used in this file (e.g. for initial data)
 # For Base.metadata.create_all() to work, Base just needs to be the one all models are registered with.
 # from ai_trader.models import User, Trade, Strategy, TradeType # noqa: F401 - Keep if create_initial_data is used
@@ -21,7 +22,9 @@ def init_db(db_engine=engine):
     # The following line will create tables.
     # Ensure all models are imported above so Base.metadata contains them.
     # Base.metadata.create_all(bind=db_engine) # <<< IMPORTANT: Commented out by default
-    print("Database tables created (if they didn't exist). --- Call to create_all() is COMMENTED OUT.")
+    print(
+        "Database tables created (if they didn't exist). --- Call to create_all() is COMMENTED OUT."
+    )
     print("--- To use this function, uncomment the Base.metadata.create_all() line.")
     print("--- WARNING: This should NOT be used on a database managed by Alembic.")
 
@@ -29,6 +32,7 @@ def init_db(db_engine=engine):
 def get_db_session() -> Session:
     """Helper to get a new database session."""
     return SessionLocal()
+
 
 # Example of how to add some initial data (optional)
 # from ai_trader.models import User # Ensure User is imported if using this example
@@ -59,6 +63,12 @@ if __name__ == "__main__":
     # finally:
     #     db_session.close()
     # print("Database initialization process finished.")
-    print("The if __name__ == '__main__' block in init_db.py is commented out by default.")
-    print("This is to prevent accidental direct execution of Base.metadata.create_all().")
-    print("For database schema management, please use Alembic migrations (e.g., scripts/upgrade_db.py).")
+    print(
+        "The if __name__ == '__main__' block in init_db.py is commented out by default."
+    )
+    print(
+        "This is to prevent accidental direct execution of Base.metadata.create_all()."
+    )
+    print(
+        "For database schema management, please use Alembic migrations (e.g., scripts/upgrade_db.py)."
+    )
