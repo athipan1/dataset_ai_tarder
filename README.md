@@ -25,6 +25,12 @@ The core of the project is `ai_trader/models.py`, which defines the database str
         *   Create a database and user.
         *   Configure your database connection details in an environment file (see "Environment Configuration" below).
 
+### Railway Deployment
+
+1.  **Add a PostgreSQL database:** In your Railway project, add a new PostgreSQL database service.
+2.  **Configure environment variables:** Railway will automatically inject the `DATABASE_URL` environment variable into your application's environment. You don't need to set it manually.
+3.  **Enable migrations:** Configure your application's deployment command to run `alembic upgrade head` before starting the application. This will ensure that your database schema is always up-to-date.
+
 ## Environment Configuration
 
 This project uses `python-dotenv` to manage environment variables, making it easy to configure settings for different environments (local development, testing, production).
