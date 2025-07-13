@@ -4,26 +4,81 @@ This project provides a database schema and SQLAlchemy models for an AI Trader a
 
 ## Project Overview
 
-The core of the project is `ai_trader/models.py`, which defines the database structure using SQLAlchemy. Configuration is managed in `ai_trader/config.py`. This setup can be used with SQLite for local development and testing, or with PostgreSQL for more robust deployments.
+This project provides a comprehensive, production-ready backend for an AI-powered trading application. It includes a robust database schema, data processing pipelines, and a Dockerized environment for consistent development and deployment.
 
-## Setup and Installation
+**Key Features:**
 
-1.  **Python Version:** Ensure you have Python 3.8+ installed.
-2.  **Virtual Environment (Recommended):**
+*   **SQLAlchemy Core:** Modern, type-annotated SQLAlchemy models for all database entities.
+*   **Data Pipelines:** Scripts to fetch, process, and store financial data and generate trading signals.
+*   **Database Migrations:** Alembic for safe and version-controlled schema evolution.
+*   **Dockerized Environment:** A multi-container setup with Docker Compose for the application and PostgreSQL database.
+*   **Code Quality:** Pre-commit hooks for automated linting and formatting (Black, isort, Flake8).
+*   **Testing:** A testing suite with Pytest to ensure code reliability.
+
+## Getting Started
+
+The recommended way to run this project is using the provided Docker environment.
+
+### Prerequisites
+
+*   Docker Desktop (for Windows or macOS) or Docker Engine and Docker Compose plugin (for Linux).
+
+### Dockerized Setup (Recommended)
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/athipan1/dataset_ai_tarder.git
+    cd dataset_ai_tarder
+    ```
+
+2.  **Create Environment File:**
+    Copy the example environment file and customize it if needed. The defaults are configured to work with the Docker Compose setup.
+    ```bash
+    cp .env.example .env.dev.docker
+    ```
+
+3.  **Build and Start Services:**
+    ```bash
+    docker compose up -d --build
+    ```
+    This command will:
+    *   Build the Docker images for the backend and database.
+    *   Start the application and a PostgreSQL database.
+    *   Automatically apply database migrations on startup.
+
+4.  **Seed the Database:**
+    Once the containers are running, you can seed the database with initial data:
+    ```bash
+    docker compose exec backend python scripts/db/seed_users.py
+    docker compose exec backend python scripts/db/seed_assets.py
+    docker compose exec backend python scripts/db/seed_strategies.py
+    ```
+
+### Manual Installation (Without Docker)
+
+1.  **Python Version:** Ensure you have Python 3.9+ installed.
+
+2.  **Virtual Environment:**
     ```bash
     python -m venv venv
     source venv/bin/activate  # On Windows use `venv\Scripts\activate`
     ```
+
 3.  **Install Dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
-4.  **Database Setup:**
-    *   **SQLite (Default for local development):** The database file (e.g., `ai_trader.db`) will be created in the project root when Alembic migrations are run.
-    *   **PostgreSQL (Optional):**
-        *   Ensure you have PostgreSQL server installed and running.
-        *   Create a database and user.
-        *   Configure your database connection details in an environment file (see "Environment Configuration" below).
+
+4.  **Configure Environment:**
+    Copy the `.env.example` file to `.env.local` and update the `DATABASE_URL` to point to your local PostgreSQL or SQLite database.
+    ```bash
+    cp .env.example .env.local
+    ```
+
+5.  **Run Migrations:**
+    ```bash
+    alembic upgrade head
+    ```
 
 ### Railway Deployment
 

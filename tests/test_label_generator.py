@@ -1,17 +1,22 @@
-import unittest
-from unittest.mock import patch, MagicMock, ANY
-import pandas as pd
-from datetime import datetime
 import os
 import sys
+import unittest
+from datetime import datetime
+from unittest.mock import ANY, MagicMock, patch
+
+import pandas as pd
 
 # Add project root to Python path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from ai_trader.label_generator import generate_labels, get_or_create_strategy, save_labels_to_db, get_features_data
-from ai_trader.models import Asset, Features, Signal, Strategy, SignalType, User, PriceData
+from ai_trader.label_generator import (generate_labels, get_features_data,
+                                       get_or_create_strategy,
+                                       save_labels_to_db)
+from ai_trader.models import (Asset, Features, PriceData, Signal, SignalType,
+                              Strategy, User)
+
 
 class TestLabelGenerator(unittest.TestCase):
 

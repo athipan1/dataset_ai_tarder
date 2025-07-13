@@ -1,19 +1,24 @@
-import pytest
-from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from typing import Optional
 
-from ai_trader.models import User, AuditLog, Trade, Order, OrderStatus, OrderType, OrderSide, Asset, TradeType, Strategy
+import pytest
+from sqlalchemy.orm import Session
+
+from ai_trader.auth_context import (USER_CONTEXT, CurrentUser, auth_context,
+                                    current_user_id_context_var)
 from ai_trader.db.session import SessionLocal
-from ai_trader.auth_context import auth_context, CurrentUser, USER_CONTEXT, current_user_id_context_var
 from ai_trader.event_listeners import register_audit_listeners
+from ai_trader.models import (Asset, AuditLog, Order, OrderSide, OrderStatus,
+                              OrderType, Strategy, Trade, TradeType, User)
+
 
 @pytest.fixture(scope="function")
 def db_session_audit():
     from sqlalchemy import create_engine
-    from ai_trader.models import Base
     from sqlalchemy import event as sa_event
     from sqlalchemy.engine import Engine
+
+    from ai_trader.models import Base
 
     @sa_event.listens_for(Engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):

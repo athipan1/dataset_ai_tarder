@@ -1,10 +1,12 @@
-import pytest
-from unittest.mock import MagicMock, patch
 from contextvars import ContextVar
+from unittest.mock import MagicMock, patch
 
+import pytest
+
+from ai_trader.auth_context import (CurrentUser, auth_context,
+                                    get_current_user, get_current_user_or_none)
 # Assume User model is available for type hinting and creating mock user objects
 from ai_trader.models import User
-from ai_trader.auth_context import auth_context, get_current_user, get_current_user_or_none, CurrentUser
 
 # Mock the ContextVar object used in auth_context.py
 # This allows us to control its state during tests without affecting other tests

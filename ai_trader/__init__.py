@@ -1,24 +1,18 @@
 # Expose key components of the ai_trader package
 
 # Auth context for audit logging and user identification
-from . import auth_context
-from .auth_context import get_current_user_id, set_current_user_id
-
-# Event listeners for audit logging (registration is usually handled internally)
-from . import event_listeners
-
-# Database session and initialization
-from .db import session as db_session # Alias to avoid conflict if 'session' is used locally
-from .db.session import get_db, SessionLocal
-
-# Models
-from . import models
-from .models import * # Expose all models for convenience
-
 # Configuration
-from . import config
+# Models
+# Event listeners for audit logging (registration is usually handled internally)
+from . import auth_context, config, event_listeners, models
+from .auth_context import get_current_user_id, set_current_user_id
 from .config import settings
-
+# Database session and initialization
+from .db import \
+    session as \
+    db_session  # Alias to avoid conflict if 'session' is used locally
+from .db.session import SessionLocal, get_db
+from .models import *  # Expose all models for convenience
 
 __all__ = [
     "auth_context",

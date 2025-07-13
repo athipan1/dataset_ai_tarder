@@ -1,7 +1,9 @@
+from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import Optional
+
 from pydantic import BaseModel
-from contextlib import contextmanager
+
 
 class CurrentUser(BaseModel):
     """Pydantic model to represent the current user in context."""

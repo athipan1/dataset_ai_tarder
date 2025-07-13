@@ -1,20 +1,23 @@
-import unittest
-from unittest.mock import patch, MagicMock, call
-import pandas as pd
-from datetime import datetime, timezone # Added timezone
 import os
 import sys
+import unittest
+from datetime import datetime, timezone  # Added timezone
+from unittest.mock import MagicMock, call, patch
+
+import pandas as pd
 
 # Add project root to Python path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from ai_trader.models import Asset, PriceData
 # Important: The script to be tested should be imported AFTER sys.path is modified,
 # if it relies on project-level imports and is not installed as a package.
 # However, for scripts, it's common to test their functions directly.
-from scripts.fetch_price_data import fetch_yfinance_data, get_or_create_asset, save_data_to_db
-from ai_trader.models import Asset, PriceData
+from scripts.fetch_price_data import (fetch_yfinance_data, get_or_create_asset,
+                                      save_data_to_db)
+
 
 class TestFetchPriceData(unittest.TestCase):
 

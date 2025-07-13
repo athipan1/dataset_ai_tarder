@@ -1,14 +1,14 @@
+from datetime import date, datetime
+
 import pytest
 from sqlalchemy import create_engine, inspect
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
-from datetime import datetime, date
+from sqlalchemy.orm import sessionmaker
 
-from ai_trader.models import (
-    Base, User, Strategy, Asset, PriceData, Signal, Order, OrderStatus,
-    OrderType, OrderSide, BacktestResult, Trade, TradeType, UserBehaviorLog,
-    TradeAnalytics, MarketEvent
-)
+from ai_trader.models import (Asset, BacktestResult, Base, MarketEvent, Order,
+                              OrderSide, OrderStatus, OrderType, PriceData,
+                              Signal, Strategy, Trade, TradeAnalytics,
+                              TradeType, User, UserBehaviorLog)
 
 # Use an in-memory SQLite database for testing
 DATABASE_URL = "sqlite:///:memory:"
@@ -16,6 +16,8 @@ DATABASE_URL = "sqlite:///:memory:"
 # Enable foreign key support for SQLite in-memory for tests
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
+
+
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
