@@ -11,7 +11,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from ai_trader.label_generator import (generate_labels, get_features_data,
+from ai_trader.services.label_generator import (generate_labels, get_features_data,
                                        get_or_create_strategy,
                                        save_labels_to_db)
 from ai_trader.models import (Asset, Features, PriceData, Signal, SignalType,

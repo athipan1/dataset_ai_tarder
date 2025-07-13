@@ -15,8 +15,8 @@ from ai_trader.models import Asset, PriceData
 # Important: The script to be tested should be imported AFTER sys.path is modified,
 # if it relies on project-level imports and is not installed as a package.
 # However, for scripts, it's common to test their functions directly.
-from scripts.fetch_price_data import (fetch_yfinance_data, get_or_create_asset,
-                                      save_data_to_db)
+from scripts.data.fetch_price_data import (fetch_yfinance_data, get_or_create_asset,
+                                     save_data_to_db)
 
 
 class TestFetchPriceData(unittest.TestCase):
