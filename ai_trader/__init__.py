@@ -1,24 +1,16 @@
 # Expose key components of the ai_trader package
 
 # Auth context for audit logging and user identification
-from . import auth_context
-from .auth_context import get_current_user_id, set_current_user_id
-
+# Configuration
+# Models
 # Event listeners for audit logging (registration is usually handled internally)
-from . import event_listeners
+from . import event_listeners, models
 
 # Database session and initialization
-from .db import session as db_session # Alias to avoid conflict if 'session' is used locally
-from .db.session import get_db, SessionLocal
-
-# Models
-from . import models
-from .models import * # Expose all models for convenience
-
-# Configuration
-from . import config
-from .config import settings
-
+from .db import (
+    session as db_session,
+)  # Alias to avoid conflict if 'session' is used locally
+from .models import *  # Expose all models for convenience
 
 __all__ = [
     "auth_context",
@@ -37,7 +29,7 @@ __all__ = [
 
 # Add all model names to __all__ to make them available via "from ai_trader import User"
 # This requires models.__all__ to be defined, which it is.
-if hasattr(models, '__all__'):
+if hasattr(models, "__all__"):
     __all__.extend(models.__all__)
     # Remove duplicates that might have been added manually above if any
     __all__ = sorted(list(set(__all__)))

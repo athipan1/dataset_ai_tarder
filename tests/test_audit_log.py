@@ -1,19 +1,37 @@
-import pytest
-from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from typing import Optional
 
-from ai_trader.models import User, AuditLog, Trade, Order, OrderStatus, OrderType, OrderSide, Asset, TradeType, Strategy
-from ai_trader.db.session import SessionLocal
-from ai_trader.auth_context import auth_context, CurrentUser, USER_CONTEXT, current_user_id_context_var
+import pytest
+from sqlalchemy.orm import Session
+
+from ai_trader.auth_context import (
+    USER_CONTEXT,
+    CurrentUser,
+    auth_context,
+    current_user_id_context_var,
+)
 from ai_trader.event_listeners import register_audit_listeners
+from ai_trader.models import (
+    Asset,
+    AuditLog,
+    Order,
+    OrderSide,
+    OrderStatus,
+    OrderType,
+    Strategy,
+    Trade,
+    TradeType,
+    User,
+)
+
 
 @pytest.fixture(scope="function")
 def db_session_audit():
     from sqlalchemy import create_engine
-    from ai_trader.models import Base
     from sqlalchemy import event as sa_event
     from sqlalchemy.engine import Engine
+
+    from ai_trader.models import Base
 
     @sa_event.listens_for(Engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):
@@ -38,9 +56,12 @@ def db_session_audit():
         session_instance.close()
         Base.metadata.drop_all(bind=engine)
 
+
 @pytest.fixture(scope="function")
 def test_user_for_audit(db_session_audit: Session):
-    user = User(username="audit_user", email="audit@example.com", hashed_password="password")
+    user = User(
+        username="audit_user", email="audit@example.com", hashed_password="password"
+    )
     user.is_active = True
     user.is_superuser = False
     db_session_audit.add(user)
@@ -48,14 +69,22 @@ def test_user_for_audit(db_session_audit: Session):
     db_session_audit.refresh(user)
     return user
 
+
 @pytest.fixture
 def current_user_ctx(test_user_for_audit: User):
-    if not hasattr(test_user_for_audit, 'is_superuser'):
+    if not hasattr(test_user_for_audit, "is_superuser"):
         test_user_for_audit.is_superuser = False
-    cu = CurrentUser(user_id=test_user_for_audit.id, username=test_user_for_audit.username, is_superuser=test_user_for_audit.is_superuser)
+    cu = CurrentUser(
+        user_id=test_user_for_audit.id,
+        username=test_user_for_audit.username,
+        is_superuser=test_user_for_audit.is_superuser,
+    )
     return auth_context(cu)
 
-def get_audit_logs(session: Session, table_name: Optional[str] = None, action: Optional[str] = None) -> list[AuditLog]:
+
+def get_audit_logs(
+    session: Session, table_name: Optional[str] = None, action: Optional[str] = None
+) -> list[AuditLog]:
     query = session.query(AuditLog)
     if table_name:
         query = query.filter(AuditLog.table_name == table_name)
@@ -63,22 +92,35 @@ def get_audit_logs(session: Session, table_name: Optional[str] = None, action: O
         query = query.filter(AuditLog.action == action)
     return query.order_by(AuditLog.timestamp.asc()).all()
 
+
 # User Audit Tests
-def test_audit_log_on_user_creation(db_session_audit: Session, test_user_for_audit: User):
+def test_audit_log_on_user_creation(
+    db_session_audit: Session, test_user_for_audit: User
+):
     db_session_audit.query(AuditLog).delete()
     db_session_audit.commit()
 
-    creator = User(username="creator_user_audit", email="creator_audit@example.com", hashed_password="pw")
+    creator = User(
+        username="creator_user_audit",
+        email="creator_audit@example.com",
+        hashed_password="pw",
+    )
     creator.is_active = True
     creator.is_superuser = True
     db_session_audit.add(creator)
     db_session_audit.commit()
     db_session_audit.refresh(creator)
 
-    creator_user_details = CurrentUser(user_id=creator.id, username=creator.username, is_superuser=creator.is_superuser)
+    creator_user_details = CurrentUser(
+        user_id=creator.id, username=creator.username, is_superuser=creator.is_superuser
+    )
 
     with auth_context(creator_user_details):
-        new_user = User(username="newly_created_for_audit_test", email="new_audit_test@example.com", hashed_password="pw")
+        new_user = User(
+            username="newly_created_for_audit_test",
+            email="new_audit_test@example.com",
+            hashed_password="pw",
+        )
         new_user.is_active = True
         new_user.is_superuser = False
         db_session_audit.add(new_user)
@@ -88,20 +130,28 @@ def test_audit_log_on_user_creation(db_session_audit: Session, test_user_for_aud
     logs = get_audit_logs(db_session_audit, table_name="users", action="INSERT")
     new_user_log_found = False
     for log in reversed(logs):
-        if log.table_name == "users" and log.action == "INSERT" and \
-           log.record_id == new_user_id and \
-           log.changed_by == creator_user_details.user_id:
+        if (
+            log.table_name == "users"
+            and log.action == "INSERT"
+            and log.record_id == new_user_id
+            and log.changed_by == creator_user_details.user_id
+        ):
             assert "username" in log.changes
             assert log.changes["username"] == "newly_created_for_audit_test"
             new_user_log_found = True
             break
     assert new_user_log_found, "Audit log for new user creation not found or incorrect."
 
-def test_audit_log_on_user_update(db_session_audit: Session, test_user_for_audit: User, current_user_ctx):
+
+def test_audit_log_on_user_update(
+    db_session_audit: Session, test_user_for_audit: User, current_user_ctx
+):
     db_session_audit.query(AuditLog).filter(AuditLog.table_name == "users").delete()
     db_session_audit.commit()
 
-    user_to_update = db_session_audit.query(User).filter_by(id=test_user_for_audit.id).one()
+    user_to_update = (
+        db_session_audit.query(User).filter_by(id=test_user_for_audit.id).one()
+    )
     original_username = user_to_update.username
     original_email = user_to_update.email
 
@@ -125,8 +175,13 @@ def test_audit_log_on_user_update(db_session_audit: Session, test_user_for_audit
             break
     assert update_log_found, "Update audit log for User not found or details mismatch."
 
-def test_audit_log_on_user_delete(db_session_audit: Session, test_user_for_audit: User, current_user_ctx):
-    user_to_delete = db_session_audit.query(User).filter_by(id=test_user_for_audit.id).one()
+
+def test_audit_log_on_user_delete(
+    db_session_audit: Session, test_user_for_audit: User, current_user_ctx
+):
+    user_to_delete = (
+        db_session_audit.query(User).filter_by(id=test_user_for_audit.id).one()
+    )
     user_id_to_delete = user_to_delete.id
     original_username = user_to_delete.username
 
@@ -134,13 +189,13 @@ def test_audit_log_on_user_delete(db_session_audit: Session, test_user_for_audit
     db_session_audit.commit()
 
     with current_user_ctx:
-        if hasattr(user_to_delete, 'soft_delete'):
+        if hasattr(user_to_delete, "soft_delete"):
             user_to_delete.soft_delete(db_session_audit)
         else:
             db_session_audit.delete(user_to_delete)
         db_session_audit.commit()
 
-    expected_action = "UPDATE" if hasattr(user_to_delete, 'soft_delete') else "DELETE"
+    expected_action = "UPDATE" if hasattr(user_to_delete, "soft_delete") else "DELETE"
     logs = get_audit_logs(db_session_audit, table_name="users", action=expected_action)
     delete_log_found = False
     for log in reversed(logs):
@@ -156,6 +211,7 @@ def test_audit_log_on_user_delete(db_session_audit: Session, test_user_for_audit
             break
     assert delete_log_found, f"{expected_action} audit log for User not found."
 
+
 # Asset Audit Tests
 @pytest.fixture
 def sample_asset(db_session_audit: Session):
@@ -165,7 +221,10 @@ def sample_asset(db_session_audit: Session):
     db_session_audit.refresh(asset)
     return asset
 
-def test_audit_log_on_asset_creation(db_session_audit: Session, test_user_for_audit: User, current_user_ctx):
+
+def test_audit_log_on_asset_creation(
+    db_session_audit: Session, test_user_for_audit: User, current_user_ctx
+):
     db_session_audit.query(AuditLog).delete()
     db_session_audit.commit()
 
@@ -178,16 +237,25 @@ def test_audit_log_on_asset_creation(db_session_audit: Session, test_user_for_au
     logs = get_audit_logs(db_session_audit, table_name="assets", action="INSERT")
     asset_log_found = False
     for log in reversed(logs):
-        if log.table_name == "assets" and log.action == "INSERT" and \
-           log.record_id == new_asset_id and \
-           log.changed_by == test_user_for_audit.id:
+        if (
+            log.table_name == "assets"
+            and log.action == "INSERT"
+            and log.record_id == new_asset_id
+            and log.changed_by == test_user_for_audit.id
+        ):
             assert "symbol" in log.changes
             assert log.changes["symbol"] == "NEWASSET"
             asset_log_found = True
             break
     assert asset_log_found, "Audit log for Asset creation not found."
 
-def test_audit_log_on_asset_update(db_session_audit: Session, sample_asset: Asset, test_user_for_audit: User, current_user_ctx):
+
+def test_audit_log_on_asset_update(
+    db_session_audit: Session,
+    sample_asset: Asset,
+    test_user_for_audit: User,
+    current_user_ctx,
+):
     db_session_audit.query(AuditLog).filter(AuditLog.table_name == "assets").delete()
     db_session_audit.commit()
 
@@ -210,21 +278,33 @@ def test_audit_log_on_asset_update(db_session_audit: Session, sample_asset: Asse
             break
     assert update_log_found, "Update audit log for Asset not found."
 
+
 # Strategy Audit Tests
 @pytest.fixture
 def sample_strategy(db_session_audit: Session, test_user_for_audit: User):
-    strategy = Strategy(name="AuditStrategyTest", description="Test audit for strategy", user_id=test_user_for_audit.id)
+    strategy = Strategy(
+        name="AuditStrategyTest",
+        description="Test audit for strategy",
+        user_id=test_user_for_audit.id,
+    )
     db_session_audit.add(strategy)
     db_session_audit.commit()
     db_session_audit.refresh(strategy)
     return strategy
 
-def test_audit_log_on_strategy_creation(db_session_audit: Session, test_user_for_audit: User, current_user_ctx):
+
+def test_audit_log_on_strategy_creation(
+    db_session_audit: Session, test_user_for_audit: User, current_user_ctx
+):
     db_session_audit.query(AuditLog).delete()
     db_session_audit.commit()
 
     with current_user_ctx:
-        new_strategy = Strategy(name="NewAuditStrategy", description="A new strategy for audit", user_id=test_user_for_audit.id)
+        new_strategy = Strategy(
+            name="NewAuditStrategy",
+            description="A new strategy for audit",
+            user_id=test_user_for_audit.id,
+        )
         db_session_audit.add(new_strategy)
         db_session_audit.commit()
         new_strategy_id = new_strategy.id
@@ -232,20 +312,33 @@ def test_audit_log_on_strategy_creation(db_session_audit: Session, test_user_for
     logs = get_audit_logs(db_session_audit, table_name="strategies", action="INSERT")
     strategy_log_found = False
     for log in reversed(logs):
-        if log.table_name == "strategies" and log.action == "INSERT" and \
-           log.record_id == new_strategy_id and \
-           log.changed_by == test_user_for_audit.id:
+        if (
+            log.table_name == "strategies"
+            and log.action == "INSERT"
+            and log.record_id == new_strategy_id
+            and log.changed_by == test_user_for_audit.id
+        ):
             assert "name" in log.changes
             assert log.changes["name"] == "NewAuditStrategy"
             strategy_log_found = True
             break
     assert strategy_log_found, "Audit log for Strategy creation not found."
 
-def test_audit_log_on_strategy_update(db_session_audit: Session, sample_strategy: Strategy, test_user_for_audit: User, current_user_ctx):
-    db_session_audit.query(AuditLog).filter(AuditLog.table_name == "strategies").delete()
+
+def test_audit_log_on_strategy_update(
+    db_session_audit: Session,
+    sample_strategy: Strategy,
+    test_user_for_audit: User,
+    current_user_ctx,
+):
+    db_session_audit.query(AuditLog).filter(
+        AuditLog.table_name == "strategies"
+    ).delete()
     db_session_audit.commit()
 
-    strategy_to_update = db_session_audit.query(Strategy).filter_by(id=sample_strategy.id).one()
+    strategy_to_update = (
+        db_session_audit.query(Strategy).filter_by(id=sample_strategy.id).one()
+    )
     original_description = strategy_to_update.description
 
     with current_user_ctx:
@@ -259,14 +352,22 @@ def test_audit_log_on_strategy_update(db_session_audit: Session, sample_strategy
             assert log.changed_by == test_user_for_audit.id
             assert "description" in log.changes
             assert log.changes["description"]["old"] == original_description
-            assert log.changes["description"]["new"] == "Updated Test Audit Strategy Description"
+            assert (
+                log.changes["description"]["new"]
+                == "Updated Test Audit Strategy Description"
+            )
             update_log_found = True
             break
     assert update_log_found, "Update audit log for Strategy not found."
 
 
 # Trade Audit Test (already exists, ensure it's fine)
-def test_audit_log_on_trade_creation(db_session_audit: Session, test_user_for_audit: User, sample_asset: Asset, current_user_ctx):
+def test_audit_log_on_trade_creation(
+    db_session_audit: Session,
+    test_user_for_audit: User,
+    sample_asset: Asset,
+    current_user_ctx,
+):
     db_session_audit.query(AuditLog).delete()
     db_session_audit.commit()
 
@@ -278,7 +379,7 @@ def test_audit_log_on_trade_creation(db_session_audit: Session, test_user_for_au
             order_side=OrderSide.BUY,
             status=OrderStatus.FILLED,
             quantity=1.0,
-            price=50000.0
+            price=50000.0,
         )
         db_session_audit.add(order)
         db_session_audit.commit()
@@ -290,7 +391,7 @@ def test_audit_log_on_trade_creation(db_session_audit: Session, test_user_for_au
             quantity=1.0,
             price=50000.0,
             trade_type=TradeType.BUY,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         db_session_audit.add(trade)
         db_session_audit.commit()
@@ -299,16 +400,20 @@ def test_audit_log_on_trade_creation(db_session_audit: Session, test_user_for_au
     logs = get_audit_logs(db_session_audit, table_name="trades", action="INSERT")
     trade_log_found = False
     for log in reversed(logs):
-        if log.table_name == "trades" and log.action == "INSERT" and \
-           log.record_id == trade_id and \
-           log.changed_by == test_user_for_audit.id:
+        if (
+            log.table_name == "trades"
+            and log.action == "INSERT"
+            and log.record_id == trade_id
+            and log.changed_by == test_user_for_audit.id
+        ):
             assert "symbol" in log.changes
-            assert log.changes["symbol"] == "AUDITASSET_TEST" # Corrected asset symbol
+            assert log.changes["symbol"] == "AUDITASSET_TEST"  # Corrected asset symbol
             assert "quantity" in log.changes
             assert float(log.changes["quantity"]) == 1.0
             trade_log_found = True
             break
     assert trade_log_found, "Audit log for Trade creation not found or incorrect."
+
 
 # Test for no audit log if user context is not set
 def test_no_audit_if_user_context_not_set(db_session_audit: Session):
@@ -321,7 +426,11 @@ def test_no_audit_if_user_context_not_set(db_session_audit: Session):
 
     new_user_id = None
     try:
-        user = User(username="unattributed_audit_user", email="none_audit@example.com", hashed_password="pw")
+        user = User(
+            username="unattributed_audit_user",
+            email="none_audit@example.com",
+            hashed_password="pw",
+        )
         user.is_active = True
         user.is_superuser = False
         db_session_audit.add(user)
@@ -334,13 +443,20 @@ def test_no_audit_if_user_context_not_set(db_session_audit: Session):
     logs = get_audit_logs(db_session_audit, table_name="users", action="INSERT")
     unattributed_log_found = False
     for log in reversed(logs):
-        if log.table_name == "users" and log.action == "INSERT" and log.record_id == new_user_id:
+        if (
+            log.table_name == "users"
+            and log.action == "INSERT"
+            and log.record_id == new_user_id
+        ):
             assert log.changed_by is None
             assert "username" in log.changes
             assert log.changes["username"] == "unattributed_audit_user"
             unattributed_log_found = True
             break
-    assert unattributed_log_found, "Audit log for unattributed user creation not found or incorrect."
+    assert (
+        unattributed_log_found
+    ), "Audit log for unattributed user creation not found or incorrect."
+
 
 # Test for listener registration idempotency
 def test_audit_listener_registration_idempotency():
@@ -349,4 +465,3 @@ def test_audit_listener_registration_idempotency():
         register_audit_listeners()
     except Exception as e:
         pytest.fail(f"register_audit_listeners raised an exception on second call: {e}")
-    pass

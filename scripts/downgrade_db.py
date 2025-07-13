@@ -1,7 +1,8 @@
-from alembic.config import Config
-from alembic import command
 import os
 import sys
+
+from alembic import command
+from alembic.config import Config
 
 # Construct the path to alembic.ini relative to this script
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -1,26 +1,37 @@
 import argparse
 import logging
+
 from faker import Faker
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Adjust imports to match project structure
 try:
-    from ai_trader.models import User
     from ai_trader.db.session import SessionLocal
+    from ai_trader.models import User
+
     # Placeholder for password hashing - replace with actual utility if available
     # from ai_trader.security import get_password_hash
 except ImportError:
-    logger.error("Failed to import necessary modules. Ensure PYTHONPATH or script execution context is correct.")
-    logger.info("Attempting relative imports for common project structures (less ideal).")
-    import sys
+    logger.error(
+        "Failed to import necessary modules. Ensure PYTHONPATH or script execution context is correct."
+    )
+    logger.info(
+        "Attempting relative imports for common project structures (less ideal)."
+    )
     import os
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from ai_trader.models import User
+    import sys
+
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     from ai_trader.db.session import SessionLocal
+    from ai_trader.models import User
+
     # from ai_trader.security import get_password_hash # Adjust if path is different
+
 
 # If no password hashing function is available, we'll use a placeholder.
 # Real applications should hash passwords securely.
@@ -45,11 +56,11 @@ def seed_users(session, num_users: int = 10):
 
     for i in range(num_users):
         username = fake.user_name()
-        while username in existing_usernames: # Ensure username is unique
+        while username in existing_usernames:  # Ensure username is unique
             username = fake.user_name() + str(i)
 
         email = fake.email()
-        while email in existing_emails: # Ensure email is unique
+        while email in existing_emails:  # Ensure email is unique
             email = f"{i}_{fake.email()}"
 
         # For seeding, we might use a common password or generate one.
@@ -78,13 +89,11 @@ def seed_users(session, num_users: int = 10):
         logger.error(f"Error seeding users: {e}", exc_info=True)
         logger.info("Rolled back any pending changes for user seeding.")
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seed users into the database.")
     parser.add_argument(
-        "--num_users",
-        type=int,
-        default=10,
-        help="Number of mock users to create."
+        "--num_users", type=int, default=10, help="Number of mock users to create."
     )
     args = parser.parse_args()
 
